@@ -361,6 +361,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
           <div style={{ display: "flex", gap: 10, fontSize: 11, color: COLORS.sub }}>
             {game.min_players && <span>👥 {game.min_players}~{game.max_players}</span>}
             {game.play_minutes && <span>⏱ {game.play_minutes}분</span>}
+            {game.min_age && <span>🔞 {game.min_age}세+</span>}
           </div>
         </div>
       </div>
@@ -501,6 +502,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                           <div style={{ display: "flex", gap: 8, fontSize: 12, color: COLORS.sub, marginBottom: 4, flexWrap: "wrap" }}>
                             {game.min_players && <span>👥 {game.min_players}~{game.max_players}인</span>}
                             {game.play_minutes && <span>⏱ {game.play_minutes}분</span>}
+                            {game.min_age && <span>🔞 {game.min_age}세+</span>}
                           </div>
                           <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 4 }}>
                             {game.publisher ? `🏢 ${game.publisher}` : ""}
