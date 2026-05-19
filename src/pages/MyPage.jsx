@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
 import GameCard from "../GameCard";
+import { HalfStarDisplay } from "../components/StarDisplay";
 
 const COLORS = {
   bg: "#fafafa",
@@ -79,6 +80,16 @@ function getPersonalityComment(dist, total) {
   if (lowCount / total >= 0.6) return "높은 기준으로 게임을 걸러내는 냉철한 감별사";
   if (maxCount / total <= 0.25) return "장르도 메카니즘도 가리지 않는 진정한 올라운더";
   return "취향이 뚜렷한 선택적 보드게이머";
+}
+
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
 }
 
 function formatJoinDate(isoString) {
@@ -174,6 +185,8 @@ function RatingChart({ dist, scores }) {
 
 export default function MyPage({ session, profile }) {
   const navigate = useNavigate();
+  const windowWidth = useWindowWidth();
+  const isMobile = windowWidth < 640;
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState("latest");
@@ -292,11 +305,11 @@ export default function MyPage({ session, profile }) {
   }
 
   return (
-    <main style={{ maxWidth: 1280, margin: "0 auto", padding: "40px 24px" }}>
+    <main style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "20px 12px" : "40px 24px" }}>
       {/* ── 프로필 헤더 ── */}
       <section style={{ marginBottom: 32 }}>
         <div style={{ marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: -1, color: COLORS.text }}>
+          <div style={{ fontSize: isMobile ? 24 : 32, fontWeight: 900, letterSpacing: -1, color: COLORS.text }}>
             {profile?.nickname ?? ""}
           </div>
         </div>
@@ -309,16 +322,17 @@ export default function MyPage({ session, profile }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 12,
+              gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
+              gap: isMobile ? 8 : 12,
             }}
           >
             <StatCard value={stats.totalRecords} label="총 기록" unit="회" />
             <StatCard value={stats.uniqueGames} label="플레이 게임" unit="종" />
             <StatCard
-              value={stats.avgScore ? stats.avgScore.toFixed(1) : "−"}
               label="평균 별점"
+              value={stats.avgScore ? stats.avgScore.toFixed(1) : "−"}
               unit={stats.avgScore ? "점" : ""}
+              starDisplay={stats.avgScore ? <HalfStarDisplay value={stats.avgScore} size={11} /> : null}
             />
             <StatCard
               value={stats.mostPlayed.name}
@@ -455,8 +469,8 @@ export default function MyPage({ session, profile }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: 16,
+              gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(180px, 1fr))",
+              gap: isMobile ? 8 : 16,
             }}
           >
             {filteredEntries.map(({ game, count, latestScore }) => (
@@ -480,20 +494,20 @@ export default function MyPage({ session, profile }) {
 }
 
 // ── 통계 카드 ──
-function StatCard({ value, label, unit = "", sub, truncate }) {
+function StatCard({ value, label, unit = "", sub, truncate, starDisplay }) {
   return (
     <div
       style={{
         background: COLORS.surface,
         border: `1px solid ${COLORS.border}`,
         borderRadius: 14,
-        padding: "20px 16px",
+        padding: "16px 12px",
         textAlign: "center",
       }}
     >
       <div
         style={{
-          fontSize: truncate ? 18 : 28,
+          fontSize: truncate ? 16 : 24,
           fontWeight: 900,
           color: COLORS.text,
           lineHeight: 1.1,
@@ -505,11 +519,16 @@ function StatCard({ value, label, unit = "", sub, truncate }) {
       >
         {value}
         {unit && !truncate && (
-          <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.sub, marginLeft: 2 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.sub, marginLeft: 2 }}>
             {unit}
           </span>
         )}
       </div>
+      {starDisplay && (
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 2 }}>
+          {starDisplay}
+        </div>
+      )}
       {sub && (
         <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 2 }}>{sub}</div>
       )}

@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "../supabase";
 import GameCard from "../GameCard";
 import GameFilter from "../components/GameFilter";
+import { HalfStarDisplay } from "../components/StarDisplay";
 
 const COLORS = {
   bg: "#fafafa",
@@ -228,13 +229,13 @@ export default function Home({ session }) {
   }, [games, searchQuery, filterGenres, filterPlayers, filterAge, sortOrder]);
 
   return (
-    <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px" }}>
+    <main style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "16px 12px" : "32px 24px" }}>
 
       {/* ── BGG 글로벌 TOP ── */}
       {rankings.length > 0 && (
-        <section style={{ marginBottom: 48 }}>
-          <div style={{ marginBottom: 16 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
+        <section style={{ marginBottom: isMobile ? 32 : 48 }}>
+          <div style={{ marginBottom: 12 }}>
+            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
               🌍 BGG 글로벌 TOP
             </h2>
             <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
@@ -243,7 +244,7 @@ export default function Home({ session }) {
           </div>
           <div style={scrollContainerStyle}>
             {rankings.map((r) => (
-              <RankCard key={r.rank} ranking={r} />
+              <RankCard key={r.rank} ranking={r} isMobile={isMobile} />
             ))}
           </div>
         </section>
@@ -251,9 +252,9 @@ export default function Home({ session }) {
 
       {/* ── BOGI 유저 평점 TOP ── */}
       {!loading && (
-        <section style={{ marginBottom: 48 }}>
-          <div style={{ marginBottom: 16 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
+        <section style={{ marginBottom: isMobile ? 32 : 48 }}>
+          <div style={{ marginBottom: 12 }}>
+            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
               🏆 BOGI 유저 평점 TOP
             </h2>
             {bogiTop.length > 0 && (
@@ -275,6 +276,7 @@ export default function Home({ session }) {
                   reviewSummary={reviewSummary[item.game.id] || null}
                   onReviewSaved={refreshReviewSummary}
                   bggData={rankingsMap[item.game.bgg_rank] || null}
+                  isMobile={isMobile}
                 />
               ))}
             </div>
@@ -299,9 +301,9 @@ export default function Home({ session }) {
 
       {/* ── 전체 게임 라이브러리 ── */}
       <section>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
           <div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
+            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
               📚 전체 게임
             </h2>
             <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
@@ -401,8 +403,8 @@ export default function Home({ session }) {
         ) : (
           <div style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-            gap: 16,
+            gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(180px, 1fr))",
+            gap: isMobile ? 8 : 16,
           }}>
             {filtered.map((g) => (
               <GameCard
@@ -422,12 +424,15 @@ export default function Home({ session }) {
 }
 
 // ── BOGI 유저 평점 TOP 카드 ──────────────────────────────────
-function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReviewSaved, bggData }) {
+function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReviewSaved, bggData, isMobile }) {
   const [showModal, setShowModal] = useState(false);
   const [hovered, setHovered] = useState(false);
 
   const badgeColor = rank <= 3 ? RANK_COLORS[rank - 1] : COLORS.accent;
   const genreStyle = getGenreStyle(game.genre);
+  const cardW = isMobile ? 110 : 152;
+  const imgH = isMobile ? 70 : 90;
+  const emojiFz = isMobile ? 28 : 38;
 
   return (
     <>
@@ -436,7 +441,7 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
         onMouseLeave={() => setHovered(false)}
         onClick={() => setShowModal(true)}
         style={{
-          flex: "0 0 152px",
+          flex: `0 0 ${cardW}px`,
           background: COLORS.surface,
           border: `1px solid ${hovered ? COLORS.borderHover : COLORS.border}`,
           borderRadius: 12,
@@ -450,19 +455,19 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
         {/* 장르 색상 블록 */}
         <div
           style={{
-            height: 90,
+            height: imgH,
             background: `linear-gradient(135deg, ${genreStyle.grad[0]}, ${genreStyle.grad[1]})`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            position: "relative", fontSize: 38,
+            position: "relative", fontSize: emojiFz,
           }}
         >
           {genreStyle.emoji}
           <div
             style={{
-              position: "absolute", top: 8, left: 8,
+              position: "absolute", top: 6, left: 6,
               background: badgeColor, color: "#fff",
-              fontSize: 11, fontWeight: 800,
-              padding: "2px 8px", borderRadius: 10,
+              fontSize: isMobile ? 10 : 11, fontWeight: 800,
+              padding: "2px 6px", borderRadius: 10,
               boxShadow: `0 2px 6px ${badgeColor}88`,
             }}
           >
@@ -471,20 +476,25 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
         </div>
 
         {/* 게임 정보 */}
-        <div style={{ padding: "10px 12px" }}>
+        <div style={{ padding: isMobile ? "8px 9px" : "10px 12px" }}>
           <div
             title={game.name_ko}
             style={{
-              fontSize: 13, fontWeight: 700, color: COLORS.text,
+              fontSize: isMobile ? 11 : 13, fontWeight: 700, color: COLORS.text,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              marginBottom: 5,
+              marginBottom: 4,
             }}
           >
             {game.name_ko}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
-            <span style={{ color: COLORS.accent, fontWeight: 700 }}>★ {avg.toFixed(1)}</span>
-            <span style={{ color: COLORS.subLight }}>· {count}개 평가</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "wrap" }}>
+            <HalfStarDisplay value={avg} size={isMobile ? 11 : 12} />
+            <span style={{ fontSize: isMobile ? 10 : 11, color: COLORS.accent, fontWeight: 700 }}>
+              {avg.toFixed(1)}
+            </span>
+            <span style={{ fontSize: isMobile ? 9 : 10, color: COLORS.subLight }}>
+              · {count}개
+            </span>
           </div>
         </div>
       </div>
@@ -506,16 +516,17 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
 }
 
 // ── BGG 글로벌 TOP 카드 ──────────────────────────────────────
-function RankCard({ ranking }) {
+function RankCard({ ranking, isMobile }) {
   const [hovered, setHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const cardW = isMobile ? 120 : 160;
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        flex: "0 0 160px",
+        flex: `0 0 ${cardW}px`,
         background: COLORS.surface,
         border: `1px solid ${hovered ? COLORS.borderHover : COLORS.border}`,
         borderRadius: 12,
@@ -538,31 +549,32 @@ function RankCard({ ranking }) {
           <div style={{
             width: "100%", height: "100%",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 40, background: "linear-gradient(135deg, #f3f4f6, #d4d4d8)",
+            fontSize: isMobile ? 28 : 40, background: "linear-gradient(135deg, #f3f4f6, #d4d4d8)",
           }}>
             🎲
           </div>
         )}
         <div style={{
-          position: "absolute", top: 8, left: 8,
+          position: "absolute", top: 6, left: 6,
           background: COLORS.accent, color: "#fff",
-          fontSize: 13, fontWeight: 800, padding: "3px 9px", borderRadius: 14,
+          fontSize: isMobile ? 11 : 13, fontWeight: 800,
+          padding: isMobile ? "2px 6px" : "3px 9px", borderRadius: 14,
           boxShadow: "0 2px 6px rgba(255,107,53,0.4)",
         }}>
           #{ranking.rank}
         </div>
       </div>
-      <div style={{ padding: "10px 12px" }}>
+      <div style={{ padding: isMobile ? "8px 9px" : "10px 12px" }}>
         <div
           style={{
-            fontSize: 13, fontWeight: 700, color: COLORS.text,
+            fontSize: isMobile ? 11 : 13, fontWeight: 700, color: COLORS.text,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4,
           }}
           title={ranking.name_en}
         >
           {ranking.name_en}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 6, fontSize: isMobile ? 10 : 11 }}>
           <span style={{ color: COLORS.accent, fontWeight: 700 }}>★ {ranking.avg_rating?.toFixed(2)}</span>
           <span style={{ color: COLORS.subLight }}>· {ranking.year_published}</span>
         </div>

@@ -57,7 +57,7 @@ const getGenreStyle = (genres) => {
 };
 
 const displayScore = (review) => {
-  if (review.total_score) return `★ ${review.total_score}`;
+  if (review.total_score) return `★ ${Number(review.total_score).toFixed(1)}`;
   return "−";
 };
 
@@ -79,6 +79,7 @@ function useWindowWidth() {
   return width;
 }
 
+// 정수 별점 (세부 별점용)
 function StarRating({ value, onChange, size = 24 }) {
   const [hovered, setHovered] = useState(null);
   return (
@@ -101,6 +102,64 @@ function StarRating({ value, onChange, size = 24 }) {
           ★
         </span>
       ))}
+    </div>
+  );
+}
+
+// 0.5 단위 별점 입력 (총점용) — 마우스/터치 모두 지원
+function HalfStarRating({ value, onChange, size = 30 }) {
+  const [hovered, setHovered] = useState(null);
+  const display = hovered ?? value;
+
+  const pickValue = (e, n) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clientX = e.clientX ?? e.changedTouches?.[0]?.clientX ?? rect.left + rect.width / 2;
+    const newVal = clientX - rect.left < rect.width / 2 ? n - 0.5 : n;
+    onChange(value === newVal ? 0 : newVal);
+  };
+
+  const previewValue = (e, n) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isLeft = e.clientX - rect.left < rect.width / 2;
+    setHovered(isLeft ? n - 0.5 : n);
+  };
+
+  return (
+    <div style={{ display: "inline-flex", gap: 4, userSelect: "none" }}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const fill = display >= n ? "full" : display >= n - 0.5 ? "half" : "empty";
+        return (
+          <span
+            key={n}
+            onClick={(e) => pickValue(e, n)}
+            onMouseMove={(e) => previewValue(e, n)}
+            onMouseLeave={() => setHovered(null)}
+            style={{
+              position: "relative",
+              display: "inline-block",
+              fontSize: size,
+              lineHeight: 1,
+              cursor: "pointer",
+            }}
+          >
+            <span style={{ color: "#e5e7eb" }}>★</span>
+            {fill !== "empty" && (
+              <span
+                style={{
+                  position: "absolute",
+                  left: 0, top: 0,
+                  color: COLORS.accent,
+                  overflow: "hidden",
+                  width: fill === "full" ? "100%" : "50%",
+                  pointerEvents: "none",
+                }}
+              >
+                ★
+              </span>
+            )}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -149,6 +208,17 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
   useEffect(() => {
     if (autoOpen) open();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // expanded → true 시 애니메이션 트리거
+  // useEffect는 DOM 커밋 + 브라우저 페인트 후 실행이 보장되므로,
+  // 클릭·autoOpen 모두 초기 rotateY(0deg) 상태를 반드시 페인트한 뒤 전환 시작
+  useEffect(() => {
+    if (!expanded) return;
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setAnimating(true));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [expanded]);
 
   useEffect(() => {
     document.body.style.overflow = expanded ? "hidden" : "";
@@ -220,7 +290,6 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
 
   const open = () => {
     setExpanded(true);
-    requestAnimationFrame(() => requestAnimationFrame(() => setAnimating(true)));
     loadMyReviews();
   };
 
@@ -325,7 +394,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 56,
+            fontSize: isMobile ? 28 : 56,
             position: "relative",
           }}
         >
@@ -348,18 +417,18 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
             </div>
           )}
         </div>
-        <div style={{ padding: "12px 14px" }}>
+        <div style={{ padding: isMobile ? "5px 7px" : "12px 14px" }}>
           <div
             title={game.name_ko}
             style={{
-              fontSize: 14, fontWeight: 700, color: COLORS.text,
+              fontSize: isMobile ? 10 : 14, fontWeight: 700, color: COLORS.text,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              marginBottom: 3,
+              marginBottom: isMobile ? 1 : 3,
             }}
           >
             {game.name_ko}
           </div>
-          {game.name_en && (
+          {!isMobile && game.name_en && (
             <div
               style={{
                 fontSize: 11, color: COLORS.subLight,
@@ -370,11 +439,19 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
               {game.name_en}
             </div>
           )}
-          <div style={{ display: "flex", gap: 10, fontSize: 11, color: COLORS.sub }}>
-            {game.min_players && <span>👥 {game.min_players}~{game.max_players}</span>}
-            {game.play_minutes && <span>⏱ {game.play_minutes}분</span>}
-            {game.min_age && <span>🔞 {game.min_age}세+</span>}
-          </div>
+          {!isMobile && (
+            <div style={{ display: "flex", gap: 10, fontSize: 11, color: COLORS.sub, flexWrap: "wrap" }}>
+              {game.min_players && <span>👥 {game.min_players}~{game.max_players}</span>}
+              {game.play_minutes && <span>⏱ {game.play_minutes}분</span>}
+              {game.min_age && <span>🔞 {game.min_age}세+</span>}
+            </div>
+          )}
+          {isMobile && (
+            <div style={{ fontSize: 9, color: COLORS.sub }}>
+              {game.min_players ? `👥${game.min_players}~${game.max_players}` : ""}
+              {game.play_minutes ? ` ⏱${game.play_minutes}분` : ""}
+            </div>
+          )}
         </div>
       </div>
 
@@ -608,9 +685,9 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                           필수
                         </span>
                       </div>
-                      <StarRating value={totalScore} onChange={setTotalScore} size={30} />
+                      <HalfStarRating value={totalScore} onChange={setTotalScore} size={30} />
                       <div style={{ marginTop: 8, fontSize: 14, fontWeight: 700, color: totalScore > 0 ? COLORS.accent : COLORS.subLight }}>
-                        {totalScore > 0 ? `${totalScore} / 5` : "별을 선택해주세요"}
+                        {totalScore > 0 ? `${Number(totalScore).toFixed(1)} / 5` : "별을 선택해주세요"}
                       </div>
                     </div>
 
