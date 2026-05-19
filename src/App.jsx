@@ -5,6 +5,7 @@ import Auth from "./Auth";
 import Home from "./pages/Home";
 import MyPage from "./pages/MyPage";
 import AdminPage from "./pages/AdminPage";
+import NotificationBell from "./components/NotificationBell";
 
 const COLORS = {
   bg: "#fafafa",
@@ -18,7 +19,7 @@ const COLORS = {
 
 const TAB_H = 64;
 
-function Header({ profile }) {
+function Header({ profile, session }) {
   const navigate = useNavigate();
   return (
     <header
@@ -57,10 +58,11 @@ function Header({ profile }) {
             }}
           >
             {profile && (
-              <span style={{ fontSize: 13, color: COLORS.sub }}>
+              <span style={{ fontSize: 13, color: COLORS.sub, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>
                 👋 {profile.nickname}
               </span>
             )}
+            {session && <NotificationBell session={session} />}
             <button
               onClick={() => supabase.auth.signOut()}
               style={{
@@ -73,6 +75,7 @@ function Header({ profile }) {
                 fontWeight: 600,
                 cursor: "pointer",
                 fontFamily: "inherit",
+                flexShrink: 0,
               }}
             >
               로그아웃
@@ -262,7 +265,7 @@ export default function App() {
         fontFamily: "'Pretendard', 'Apple SD Gothic Neo', -apple-system, sans-serif",
       }}
     >
-      <Header profile={profile} />
+      <Header profile={profile} session={session} />
       <div style={{ paddingBottom: TAB_H }}>
         <Routes>
           <Route path="/" element={<Home session={session} />} />

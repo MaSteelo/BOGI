@@ -4,6 +4,7 @@ import { supabase } from "../supabase";
 import GameCard from "../GameCard";
 import GameFilter from "../components/GameFilter";
 import { HalfStarDisplay } from "../components/StarDisplay";
+import GameSubmissionModal from "../components/GameSubmissionModal";
 
 const COLORS = {
   bg: "#fafafa",
@@ -83,6 +84,8 @@ export default function Home({ session }) {
   const [bogiTop, setBogiTop] = useState([]);   // BOGI 유저 평점 TOP
   const [loading, setLoading] = useState(true);
   const [reviewSummary, setReviewSummary] = useState({});
+
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
 
   // 검색
   const [searchInput, setSearchInput] = useState("");
@@ -302,7 +305,7 @@ export default function Home({ session }) {
 
       {/* ── 전체 게임 라이브러리 ── */}
       <section>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
           <div>
             <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
               📚 전체 게임
@@ -313,6 +316,26 @@ export default function Home({ session }) {
                 : `전체 ${games.length}개`}
             </div>
           </div>
+          {session && (
+            <button
+              onClick={() => setShowSubmissionModal(true)}
+              style={{
+                flexShrink: 0,
+                border: `1px solid ${COLORS.accent}`,
+                borderRadius: 8,
+                padding: isMobile ? "6px 10px" : "7px 14px",
+                background: COLORS.accentLight,
+                color: COLORS.accent,
+                fontSize: isMobile ? 11 : 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              + 게임 추가
+            </button>
+          )}
         </div>
 
         {/* 검색바 + 모바일 필터 토글 + 정렬 */}
@@ -389,16 +412,31 @@ export default function Home({ session }) {
               {hasFilter ? "조건에 맞는 게임이 없어요" : "등록된 게임이 없어요"}
             </div>
             {hasFilter && (
-              <button
-                onClick={resetFilters}
-                style={{
-                  background: COLORS.accent, color: "#fff", border: "none",
-                  borderRadius: 8, padding: "8px 20px", fontSize: 13,
-                  fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                }}
-              >
-                필터 초기화
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                <button
+                  onClick={resetFilters}
+                  style={{
+                    background: COLORS.accent, color: "#fff", border: "none",
+                    borderRadius: 8, padding: "8px 20px", fontSize: 13,
+                    fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  필터 초기화
+                </button>
+                {session && (
+                  <button
+                    onClick={() => setShowSubmissionModal(true)}
+                    style={{
+                      background: "none", color: COLORS.accent, border: "none",
+                      fontSize: 13, fontWeight: 600, cursor: "pointer",
+                      fontFamily: "inherit", textDecoration: "underline",
+                      textUnderlineOffset: 3,
+                    }}
+                  >
+                    찾는 게임이 없나요? 추가 신청하기
+                  </button>
+                )}
+              </div>
             )}
           </div>
         ) : (
@@ -420,6 +458,14 @@ export default function Home({ session }) {
           </div>
         )}
       </section>
+
+      {showSubmissionModal && createPortal(
+        <GameSubmissionModal
+          session={session}
+          onClose={() => setShowSubmissionModal(false)}
+        />,
+        document.body
+      )}
     </main>
   );
 }
