@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import EditProposalModal from "./components/EditProposalModal";
+import { HalfStarDisplay } from "./components/StarDisplay";
 
 const COLORS = {
   bg: "#fafafa",
@@ -201,6 +202,11 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
   const [myGameReviews, setMyGameReviews] = useState(null);
   const [loadingReviews, setLoadingReviews] = useState(false);
 
+  // 전체 리뷰 목록 상태
+  const [allReviews, setAllReviews] = useState(null); // null=미로드
+  const [allReviewsLoading, setAllReviewsLoading] = useState(false);
+  const [reviewsShowCount, setReviewsShowCount] = useState(10);
+
   // 토스트
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -294,15 +300,46 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
     setLoadingReviews(false);
   };
 
+  const loadAllReviews = async () => {
+    setAllReviewsLoading(true);
+    const { data: reviewRows } = await supabase
+      .from("reviews")
+      .select("id, user_id, total_score, memo, played_at, created_at, participants, participants_private")
+      .eq("game_id", game.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (!reviewRows || reviewRows.length === 0) {
+      setAllReviews([]);
+      setAllReviewsLoading(false);
+      return;
+    }
+
+    const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
+    const { data: profileRows } = await supabase
+      .from("profiles")
+      .select("id, nickname")
+      .in("id", userIds);
+
+    const nickMap = {};
+    profileRows?.forEach((p) => { nickMap[p.id] = p.nickname || "익명"; });
+
+    setAllReviews(reviewRows.map((r) => ({ ...r, nickname: nickMap[r.user_id] || "익명" })));
+    setAllReviewsLoading(false);
+  };
+
   const open = () => {
     setExpanded(true);
     loadMyReviews();
+    loadAllReviews();
   };
 
   const close = () => {
     setAnimating(false);
     resetForm();
     setMyGameReviews(null);
+    setAllReviews(null);
+    setReviewsShowCount(10);
     setConfirmDeleteId(null);
     setTimeout(() => {
       setExpanded(false);
@@ -371,6 +408,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
 
     setConfirmDeleteId(null);
     setMyGameReviews((prev) => prev.filter((r) => r.id !== reviewId));
+    setAllReviews((prev) => prev ? prev.filter((r) => r.id !== reviewId) : prev);
     if (editingReviewId === reviewId) resetForm();
     onReviewSaved?.();
     showToast("🗑️ 기록이 삭제되었어요");
@@ -967,6 +1005,108 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                         </div>
                       </>
                     )}
+                    {/* ── 이 게임의 리뷰 ── */}
+                    {(() => {
+                      if (allReviews === null) return null;
+                      const scores = allReviews.filter((r) => r.total_score > 0).map((r) => r.total_score);
+                      const avg = scores.length > 0
+                        ? scores.reduce((a, b) => a + b, 0) / scores.length
+                        : null;
+                      const visible = allReviews.slice(0, reviewsShowCount);
+                      return (
+                        <>
+                          <div style={{ height: 1, background: COLORS.border, margin: "24px 0 16px" }} />
+                          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>
+                              이 게임의 리뷰
+                            </div>
+                            {avg !== null && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                <HalfStarDisplay value={avg} size={12} />
+                                <span style={{ fontSize: 12, color: COLORS.accent, fontWeight: 700 }}>
+                                  {avg.toFixed(1)}
+                                </span>
+                                <span style={{ fontSize: 11, color: COLORS.subLight }}>
+                                  · {allReviews.length}개
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {allReviewsLoading ? (
+                            <div style={{ textAlign: "center", fontSize: 12, color: COLORS.subLight, padding: "12px 0" }}>
+                              불러오는 중...
+                            </div>
+                          ) : allReviews.length === 0 ? (
+                            <div style={{ textAlign: "center", fontSize: 12, color: COLORS.subLight, padding: "16px 0", lineHeight: 1.6 }}>
+                              아직 리뷰가 없어요.<br />첫 기록을 남겨보세요!
+                            </div>
+                          ) : (
+                            <>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                {visible.map((review) => {
+                                  const isMe = review.user_id === session?.user?.id;
+                                  return (
+                                    <div
+                                      key={review.id}
+                                      style={{
+                                        background: isMe ? "#fff7f5" : COLORS.bg,
+                                        border: `1px solid ${isMe ? "#ffd6c8" : COLORS.border}`,
+                                        borderRadius: 8,
+                                        padding: "10px 12px",
+                                      }}
+                                    >
+                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 4 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                          <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? COLORS.accent : COLORS.text }}>
+                                            {isMe ? "나" : review.nickname}
+                                          </span>
+                                          {review.total_score > 0 && (
+                                            <>
+                                              <HalfStarDisplay value={review.total_score} size={11} />
+                                              <span style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700 }}>
+                                                {Number(review.total_score).toFixed(1)}
+                                              </span>
+                                            </>
+                                          )}
+                                        </div>
+                                        <span style={{ fontSize: 10, color: COLORS.subLight }}>
+                                          {review.played_at || review.created_at?.slice(0, 10)}
+                                        </span>
+                                      </div>
+                                      {!review.participants_private && review.participants && (
+                                        <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: review.memo ? 3 : 0 }}>
+                                          👥 {review.participants}
+                                        </div>
+                                      )}
+                                      {review.memo && (
+                                        <div style={{ fontSize: 11, color: COLORS.sub, lineHeight: 1.5, wordBreak: "break-word" }}>
+                                          {review.memo}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              {allReviews.length > reviewsShowCount && (
+                                <button
+                                  onClick={() => setReviewsShowCount((n) => n + 10)}
+                                  style={{
+                                    width: "100%", marginTop: 8,
+                                    padding: "8px 0", fontSize: 12, fontWeight: 600,
+                                    background: COLORS.bg, border: `1px solid ${COLORS.border}`,
+                                    borderRadius: 8, color: COLORS.sub,
+                                    cursor: "pointer", fontFamily: "inherit",
+                                  }}
+                                >
+                                  더 보기 (+{allReviews.length - reviewsShowCount}개)
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
