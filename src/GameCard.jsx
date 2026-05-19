@@ -678,6 +678,23 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                       </div>
                     </div>
 
+                    {/* 편집 제안 버튼 — 모바일에서는 PC 왼쪽 패널 대신 여기에 표시 */}
+                    {isMobile && session && (
+                      <button
+                        onClick={() => setShowProposalModal(true)}
+                        style={{
+                          alignSelf: "flex-start",
+                          background: COLORS.bg, border: `1px solid ${COLORS.border}`,
+                          borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600,
+                          color: COLORS.sub, cursor: "pointer",
+                          display: "flex", alignItems: "center", gap: 4,
+                          fontFamily: "inherit", marginBottom: 16,
+                        }}
+                      >
+                        ✏️ 정보 수정 제안
+                      </button>
+                    )}
+
                     {/* 총점 (필수) */}
                     <div
                       style={{
@@ -738,8 +755,8 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                     <div style={{ height: 1, background: COLORS.border, marginBottom: 16 }} />
 
                     {/* 날짜 + 참가자 */}
-                    <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-                      <div style={{ flex: "1 1 120px" }}>
+                    <div style={{ display: "flex", gap: 12, marginBottom: 14, flexDirection: isMobile ? "column" : "row" }}>
+                      <div style={{ flex: 1 }}>
                         <label style={sectionLabel}>📅 플레이 날짜</label>
                         <input
                           type="date"
@@ -748,7 +765,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                           style={inputStyle}
                         />
                       </div>
-                      <div style={{ flex: "1 1 120px" }}>
+                      <div style={{ flex: 1 }}>
                         <label style={sectionLabel}>👥 참가자</label>
                         <div style={{ display: "flex", gap: 6 }}>
                           <input
