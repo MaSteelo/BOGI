@@ -124,8 +124,11 @@ function HalfStarRating({ value, onChange, size = 30 }) {
     setHovered(isLeft ? n - 0.5 : n);
   };
 
+  // 모바일(큰 size)일 때 최소 터치 타깃 확보: 세로 패딩 추가
+  const touchPad = size >= 40 ? Math.round((44 - size) / 2) : 0;
+
   return (
-    <div style={{ display: "inline-flex", gap: 4, userSelect: "none" }}>
+    <div style={{ display: "inline-flex", gap: size >= 40 ? 6 : 4, userSelect: "none" }}>
       {[1, 2, 3, 4, 5].map((n) => {
         const fill = display >= n ? "full" : display >= n - 0.5 ? "half" : "empty";
         return (
@@ -140,6 +143,7 @@ function HalfStarRating({ value, onChange, size = 30 }) {
               fontSize: size,
               lineHeight: 1,
               cursor: "pointer",
+              padding: touchPad > 0 ? `${touchPad}px 0` : 0,
             }}
           >
             <span style={{ color: "#e5e7eb" }}>★</span>
@@ -147,11 +151,13 @@ function HalfStarRating({ value, onChange, size = 30 }) {
               <span
                 style={{
                   position: "absolute",
-                  left: 0, top: 0,
+                  left: 0,
+                  top: touchPad,
                   color: COLORS.accent,
                   overflow: "hidden",
                   width: fill === "full" ? "100%" : "50%",
                   pointerEvents: "none",
+                  lineHeight: 1,
                 }}
               >
                 ★
@@ -685,7 +691,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                           필수
                         </span>
                       </div>
-                      <HalfStarRating value={totalScore} onChange={setTotalScore} size={30} />
+                      <HalfStarRating value={totalScore} onChange={setTotalScore} size={isMobile ? 44 : 30} />
                       <div style={{ marginTop: 8, fontSize: 14, fontWeight: 700, color: totalScore > 0 ? COLORS.accent : COLORS.subLight }}>
                         {totalScore > 0 ? `${Number(totalScore).toFixed(1)} / 5` : "별을 선택해주세요"}
                       </div>

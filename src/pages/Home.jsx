@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../supabase";
 import GameCard from "../GameCard";
 import GameFilter from "../components/GameFilter";
@@ -235,7 +236,7 @@ export default function Home({ session }) {
       {rankings.length > 0 && (
         <section style={{ marginBottom: isMobile ? 32 : 48 }}>
           <div style={{ marginBottom: 12 }}>
-            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
+            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
               🌍 BGG 글로벌 TOP
             </h2>
             <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
@@ -254,7 +255,7 @@ export default function Home({ session }) {
       {!loading && (
         <section style={{ marginBottom: isMobile ? 32 : 48 }}>
           <div style={{ marginBottom: 12 }}>
-            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
+            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
               🏆 BOGI 유저 평점 TOP
             </h2>
             {bogiTop.length > 0 && (
@@ -303,7 +304,7 @@ export default function Home({ session }) {
       <section>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
           <div>
-            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
+            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
               📚 전체 게임
             </h2>
             <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
@@ -499,8 +500,9 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
         </div>
       </div>
 
-      {/* 클릭 시 전체 GameCard 모달 */}
-      {showModal && (
+      {/* 클릭 시 전체 GameCard 모달 — portal로 document.body에 마운트해야
+          스크롤 컨테이너(overflow:auto)에 position:fixed가 갇히지 않음 */}
+      {showModal && createPortal(
         <GameCard
           game={game}
           session={session}
@@ -509,7 +511,8 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
           bggData={bggData}
           autoOpen
           onClose={() => setShowModal(false)}
-        />
+        />,
+        document.body
       )}
     </>
   );
@@ -590,7 +593,6 @@ const scrollContainerStyle = {
   overflowX: "auto",
   paddingBottom: 12,
   scrollbarWidth: "thin",
-  WebkitOverflowScrolling: "touch",
 };
 
 const inputStyle = {
