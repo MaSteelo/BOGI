@@ -16,6 +16,52 @@ const COLORS = {
   good: "#22c55e",
 };
 
+const GENRE_STYLE = {
+  전략: { grad: ["#dbeafe", "#93c5fd"], emoji: "♟️" },
+  가족: { grad: ["#fee2e2", "#fca5a5"], emoji: "👨‍👩‍👧" },
+  파티: { grad: ["#fce7f3", "#f9a8d4"], emoji: "🎉" },
+  협력: { grad: ["#dcfce7", "#86efac"], emoji: "🤝" },
+  카드: { grad: ["#ede9fe", "#c4b5fd"], emoji: "🃏" },
+  추상: { grad: ["#dbeafe", "#7dd3fc"], emoji: "🔷" },
+  경제: { grad: ["#ffedd5", "#fdba74"], emoji: "💰" },
+  추리: { grad: ["#e5e7eb", "#9ca3af"], emoji: "🔍" },
+  머더미스터리: { grad: ["#1f2937", "#374151"], emoji: "🔎" },
+  방탈출: { grad: ["#fef3c7", "#fcd34d"], emoji: "🚪" },
+  덱빌딩: { grad: ["#ede9fe", "#a78bfa"], emoji: "🎴" },
+  엔진빌딩: { grad: ["#d1fae5", "#6ee7b7"], emoji: "⚙️" },
+  워커플레이스먼트: { grad: ["#fef3c7", "#fcd34d"], emoji: "👷" },
+  타일배치: { grad: ["#e0f2fe", "#7dd3fc"], emoji: "🧩" },
+  다이스: { grad: ["#fee2e2", "#f87171"], emoji: "🎲" },
+  순발력: { grad: ["#fef9c3", "#fde047"], emoji: "⚡" },
+  단어: { grad: ["#ede9fe", "#c4b5fd"], emoji: "📝" },
+  상상력: { grad: ["#fce7f3", "#f0abfc"], emoji: "💭" },
+  정체은닉: { grad: ["#e5e7eb", "#6b7280"], emoji: "🎭" },
+  레거시: { grad: ["#fef3c7", "#f59e0b"], emoji: "📜" },
+  던전크롤러: { grad: ["#fee2e2", "#dc2626"], emoji: "⚔️" },
+  트릭테이킹: { grad: ["#cffafe", "#67e8f9"], emoji: "🎯" },
+  영역지배: { grad: ["#ffedd5", "#fb923c"], emoji: "🗺️" },
+  경매: { grad: ["#fef3c7", "#eab308"], emoji: "💎" },
+  프로그래밍: { grad: ["#ccfbf1", "#5eead4"], emoji: "🤖" },
+  솔로: { grad: ["#f3f4f6", "#9ca3af"], emoji: "🧘" },
+  "2인": { grad: ["#fce7f3", "#ec4899"], emoji: "👥" },
+  "4X": { grad: ["#dbeafe", "#3b82f6"], emoji: "🌌" },
+  워게임: { grad: ["#fee2e2", "#ef4444"], emoji: "⚔️" },
+  어드벤처: { grad: ["#d1fae5", "#34d399"], emoji: "🗺️" },
+  액션: { grad: ["#fee2e2", "#f87171"], emoji: "💥" },
+  어린이: { grad: ["#fef3c7", "#fcd34d"], emoji: "🧸" },
+  협상: { grad: ["#ede9fe", "#a78bfa"], emoji: "🤝" },
+  확장: { grad: ["#f3f4f6", "#9ca3af"], emoji: "➕" },
+};
+const GENRE_FALLBACK = { grad: ["#f3f4f6", "#d4d4d8"], emoji: "🎲" };
+
+function getGenreStyle(genres) {
+  if (!genres?.length) return GENRE_FALLBACK;
+  return GENRE_STYLE[genres[0]] || GENRE_FALLBACK;
+}
+
+// BOGI TOP 카드 순위 뱃지 색상
+const RANK_COLORS = ["#f59e0b", "#9ca3af", "#cd7f32"];
+
 function useWindowWidth() {
   const [width, setWidth] = useState(window.innerWidth);
   useEffect(() => {
@@ -32,19 +78,20 @@ export default function Home({ session }) {
 
   const [games, setGames] = useState([]);
   const [rankings, setRankings] = useState([]);
+  const [bogiTop, setBogiTop] = useState([]);   // BOGI 유저 평점 TOP
   const [loading, setLoading] = useState(true);
   const [reviewSummary, setReviewSummary] = useState({});
 
   // 검색
   const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState(""); // debounced
+  const [searchQuery, setSearchQuery] = useState("");
 
   // 필터
   const [filterGenres, setFilterGenres] = useState(new Set());
   const [filterPlayers, setFilterPlayers] = useState("");
   const [filterAge, setFilterAge] = useState(null);
   const [sortOrder, setSortOrder] = useState("name");
-  const [filterOpen, setFilterOpen] = useState(false); // 모바일 토글
+  const [filterOpen, setFilterOpen] = useState(false);
 
   // 검색 디바운스 300ms
   useEffect(() => {
@@ -62,9 +109,7 @@ export default function Home({ session }) {
     if (!data) return;
     const map = {};
     data.forEach((r) => {
-      if (!map[r.game_id]) {
-        map[r.game_id] = { count: 0, latestScore: r.total_score ?? null };
-      }
+      if (!map[r.game_id]) map[r.game_id] = { count: 0, latestScore: r.total_score ?? null };
       map[r.game_id].count++;
     });
     setReviewSummary(map);
@@ -72,11 +117,41 @@ export default function Home({ session }) {
 
   useEffect(() => {
     (async () => {
-      const [gamesRes, rankingsRes] = await Promise.all([
+      const [gamesRes, rankingsRes, reviewsRes] = await Promise.all([
         supabase.from("games").select("*").eq("status", "approved").order("name_ko"),
         supabase.from("bgg_rankings").select("*").order("rank").limit(50),
+        supabase.from("reviews").select("game_id, total_score").not("total_score", "is", null),
       ]);
-      if (gamesRes.data) setGames(gamesRes.data);
+
+      if (gamesRes.data) {
+        setGames(gamesRes.data);
+
+        // BOGI TOP 집계 (클라이언트)
+        if (reviewsRes.data?.length > 0) {
+          const gamesById = {};
+          gamesRes.data.forEach((g) => { gamesById[g.id] = g; });
+
+          const agg = {};
+          reviewsRes.data.forEach((r) => {
+            if (!agg[r.game_id]) agg[r.game_id] = { sum: 0, count: 0 };
+            agg[r.game_id].sum += r.total_score;
+            agg[r.game_id].count += 1;
+          });
+
+          const top = Object.entries(agg)
+            .filter(([id]) => gamesById[id])
+            .map(([id, { sum, count }]) => ({
+              game: gamesById[id],
+              avg: sum / count,
+              count,
+            }))
+            .sort((a, b) => b.avg - a.avg || b.count - a.count)
+            .slice(0, 20);
+
+          setBogiTop(top);
+        }
+      }
+
       if (rankingsRes.data) setRankings(rankingsRes.data);
       setLoading(false);
     })();
@@ -105,7 +180,6 @@ export default function Home({ session }) {
     filterPlayers !== "" ||
     filterAge !== null;
 
-  // 모바일 필터 버튼 뱃지 수 (검색어 제외)
   const activeFilterCount =
     filterGenres.size + (filterPlayers !== "" ? 1 : 0) + (filterAge !== null ? 1 : 0);
 
@@ -128,73 +202,46 @@ export default function Home({ session }) {
 
   const filtered = useMemo(() => {
     let arr = games;
-
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       arr = arr.filter(
-        (g) =>
-          g.name_ko?.toLowerCase().includes(q) ||
-          g.name_en?.toLowerCase().includes(q)
+        (g) => g.name_ko?.toLowerCase().includes(q) || g.name_en?.toLowerCase().includes(q)
       );
     }
-
     if (filterGenres.size > 0) {
       arr = arr.filter((g) => g.genre?.some((gen) => filterGenres.has(gen)));
     }
-
     if (filterPlayers !== "") {
       const n = parseInt(filterPlayers, 10);
       if (!isNaN(n) && n > 0) {
-        arr = arr.filter(
-          (g) => (g.min_players ?? 0) <= n && n <= (g.max_players ?? 99)
-        );
+        arr = arr.filter((g) => (g.min_players ?? 0) <= n && n <= (g.max_players ?? 99));
       }
     }
-
     if (filterAge !== null) {
       arr = arr.filter((g) => g.min_age != null && g.min_age <= filterAge);
     }
-
     arr = [...arr];
     if (sortOrder === "name") arr.sort((a, b) => a.name_ko.localeCompare(b.name_ko, "ko"));
     if (sortOrder === "players") arr.sort((a, b) => (b.max_players || 0) - (a.max_players || 0));
     if (sortOrder === "time") arr.sort((a, b) => (a.play_minutes || 0) - (b.play_minutes || 0));
-
     return arr;
   }, [games, searchQuery, filterGenres, filterPlayers, filterAge, sortOrder]);
 
   return (
     <main style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px" }}>
-      {/* BGG TOP 섹션 */}
+
+      {/* ── BGG 글로벌 TOP ── */}
       {rankings.length > 0 && (
         <section style={{ marginBottom: 48 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              marginBottom: 16,
-            }}
-          >
-            <div>
-              <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
-                🌍 글로벌 인기 보드게임
-              </h2>
-              <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
-                BoardGameGeek 기준 TOP {rankings.length}
-              </div>
+          <div style={{ marginBottom: 16 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
+              🌍 BGG 글로벌 TOP
+            </h2>
+            <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
+              BoardGameGeek 기준 TOP {rankings.length}
             </div>
           </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              overflowX: "auto",
-              paddingBottom: 12,
-              scrollbarWidth: "thin",
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
+          <div style={scrollContainerStyle}>
             {rankings.map((r) => (
               <RankCard key={r.rank} ranking={r} />
             ))}
@@ -202,13 +249,60 @@ export default function Home({ session }) {
         </section>
       )}
 
-      {/* 라이브러리 섹션 */}
+      {/* ── BOGI 유저 평점 TOP ── */}
+      {!loading && (
+        <section style={{ marginBottom: 48 }}>
+          <div style={{ marginBottom: 16 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
+              🏆 BOGI 유저 평점 TOP
+            </h2>
+            {bogiTop.length > 0 && (
+              <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
+                멤버 평점 기준 TOP {bogiTop.length}
+              </div>
+            )}
+          </div>
+          {bogiTop.length > 0 ? (
+            <div style={scrollContainerStyle}>
+              {bogiTop.map((item, i) => (
+                <BogiRankCard
+                  key={item.game.id}
+                  rank={i + 1}
+                  game={item.game}
+                  avg={item.avg}
+                  count={item.count}
+                  session={session}
+                  reviewSummary={reviewSummary[item.game.id] || null}
+                  onReviewSaved={refreshReviewSummary}
+                  bggData={rankingsMap[item.game.bgg_rank] || null}
+                />
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                background: COLORS.surface,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 12,
+                padding: "28px 24px",
+                textAlign: "center",
+                color: COLORS.subLight,
+                fontSize: 14,
+              }}
+            >
+              <div style={{ fontSize: 32, marginBottom: 10 }}>🎲</div>
+              아직 평가가 충분하지 않아요. 첫 평가를 남겨보세요!
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── 전체 게임 라이브러리 ── */}
       <section>
-        {/* 헤더 */}
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
           <div>
             <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>
-              📚 보드게임 라이브러리
+              📚 전체 게임
             </h2>
             <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
               {hasFilter
@@ -229,8 +323,6 @@ export default function Home({ session }) {
               style={{ ...inputStyle, paddingLeft: 36 }}
             />
           </div>
-
-          {/* 모바일 필터 토글 버튼 */}
           {isMobile && (
             <button
               onClick={() => setFilterOpen((v) => !v)}
@@ -241,38 +333,23 @@ export default function Home({ session }) {
                 padding: "0 14px",
                 background: filterOpen || activeFilterCount > 0 ? COLORS.accentLight : COLORS.surface,
                 color: filterOpen || activeFilterCount > 0 ? COLORS.accent : COLORS.sub,
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
+                fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                display: "flex", alignItems: "center", gap: 5,
               }}
             >
               필터
               {activeFilterCount > 0 && (
-                <span
-                  style={{
-                    background: COLORS.accent,
-                    color: "#fff",
-                    borderRadius: "50%",
-                    width: 17,
-                    height: 17,
-                    fontSize: 10,
-                    fontWeight: 800,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
+                <span style={{
+                  background: COLORS.accent, color: "#fff", borderRadius: "50%",
+                  width: 17, height: 17, fontSize: 10, fontWeight: 800,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
                   {activeFilterCount}
                 </span>
               )}
               <span style={{ fontSize: 10 }}>{filterOpen ? "▲" : "▼"}</span>
             </button>
           )}
-
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
@@ -284,7 +361,7 @@ export default function Home({ session }) {
           </select>
         </div>
 
-        {/* 필터 패널 - 데스크탑 항상 표시, 모바일 토글 */}
+        {/* 필터 패널 */}
         {(!isMobile || filterOpen) && (
           <GameFilter
             allGenres={allGenres}
@@ -301,9 +378,7 @@ export default function Home({ session }) {
 
         {/* 게임 격자 */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: 80, color: COLORS.sub }}>
-            로딩 중...
-          </div>
+          <div style={{ textAlign: "center", padding: 80, color: COLORS.sub }}>로딩 중...</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: 80, color: COLORS.sub }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🎲</div>
@@ -314,15 +389,9 @@ export default function Home({ session }) {
               <button
                 onClick={resetFilters}
                 style={{
-                  background: COLORS.accent,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "8px 20px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
+                  background: COLORS.accent, color: "#fff", border: "none",
+                  borderRadius: 8, padding: "8px 20px", fontSize: 13,
+                  fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
                 }}
               >
                 필터 초기화
@@ -330,13 +399,11 @@ export default function Home({ session }) {
             )}
           </div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: 16,
-            }}
-          >
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+            gap: 16,
+          }}>
             {filtered.map((g) => (
               <GameCard
                 key={g.id}
@@ -354,6 +421,91 @@ export default function Home({ session }) {
   );
 }
 
+// ── BOGI 유저 평점 TOP 카드 ──────────────────────────────────
+function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReviewSaved, bggData }) {
+  const [showModal, setShowModal] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  const badgeColor = rank <= 3 ? RANK_COLORS[rank - 1] : COLORS.accent;
+  const genreStyle = getGenreStyle(game.genre);
+
+  return (
+    <>
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={() => setShowModal(true)}
+        style={{
+          flex: "0 0 152px",
+          background: COLORS.surface,
+          border: `1px solid ${hovered ? COLORS.borderHover : COLORS.border}`,
+          borderRadius: 12,
+          overflow: "hidden",
+          cursor: "pointer",
+          transition: "all 0.2s",
+          transform: hovered ? "translateY(-2px)" : "none",
+          boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.08)" : "0 1px 2px rgba(0,0,0,0.03)",
+        }}
+      >
+        {/* 장르 색상 블록 */}
+        <div
+          style={{
+            height: 90,
+            background: `linear-gradient(135deg, ${genreStyle.grad[0]}, ${genreStyle.grad[1]})`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            position: "relative", fontSize: 38,
+          }}
+        >
+          {genreStyle.emoji}
+          <div
+            style={{
+              position: "absolute", top: 8, left: 8,
+              background: badgeColor, color: "#fff",
+              fontSize: 11, fontWeight: 800,
+              padding: "2px 8px", borderRadius: 10,
+              boxShadow: `0 2px 6px ${badgeColor}88`,
+            }}
+          >
+            #{rank}
+          </div>
+        </div>
+
+        {/* 게임 정보 */}
+        <div style={{ padding: "10px 12px" }}>
+          <div
+            title={game.name_ko}
+            style={{
+              fontSize: 13, fontWeight: 700, color: COLORS.text,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              marginBottom: 5,
+            }}
+          >
+            {game.name_ko}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
+            <span style={{ color: COLORS.accent, fontWeight: 700 }}>★ {avg.toFixed(1)}</span>
+            <span style={{ color: COLORS.subLight }}>· {count}개 평가</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 클릭 시 전체 GameCard 모달 */}
+      {showModal && (
+        <GameCard
+          game={game}
+          session={session}
+          reviewSummary={reviewSummary}
+          onReviewSaved={onReviewSaved}
+          bggData={bggData}
+          autoOpen
+          onClose={() => setShowModal(false)}
+        />
+      )}
+    </>
+  );
+}
+
+// ── BGG 글로벌 TOP 카드 ──────────────────────────────────────
 function RankCard({ ranking }) {
   const [hovered, setHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -371,19 +523,10 @@ function RankCard({ ranking }) {
         cursor: "pointer",
         transition: "all 0.2s",
         transform: hovered ? "translateY(-2px)" : "translateY(0)",
-        boxShadow: hovered
-          ? "0 8px 24px rgba(0,0,0,0.08)"
-          : "0 1px 2px rgba(0,0,0,0.03)",
+        boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.08)" : "0 1px 2px rgba(0,0,0,0.03)",
       }}
     >
-      <div
-        style={{
-          aspectRatio: "1 / 1",
-          background: "#f3f4f6",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
+      <div style={{ aspectRatio: "1 / 1", background: "#f3f4f6", position: "relative", overflow: "hidden" }}>
         {!imgError && ranking.thumbnail ? (
           <img
             src={ranking.thumbnail}
@@ -392,63 +535,51 @@ function RankCard({ ranking }) {
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 40,
-              background: "linear-gradient(135deg, #f3f4f6, #d4d4d8)",
-            }}
-          >
+          <div style={{
+            width: "100%", height: "100%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 40, background: "linear-gradient(135deg, #f3f4f6, #d4d4d8)",
+          }}>
             🎲
           </div>
         )}
-        <div
-          style={{
-            position: "absolute",
-            top: 8,
-            left: 8,
-            background: COLORS.accent,
-            color: "#fff",
-            fontSize: 13,
-            fontWeight: 800,
-            padding: "3px 9px",
-            borderRadius: 14,
-            boxShadow: "0 2px 6px rgba(255,107,53,0.4)",
-          }}
-        >
+        <div style={{
+          position: "absolute", top: 8, left: 8,
+          background: COLORS.accent, color: "#fff",
+          fontSize: 13, fontWeight: 800, padding: "3px 9px", borderRadius: 14,
+          boxShadow: "0 2px 6px rgba(255,107,53,0.4)",
+        }}>
           #{ranking.rank}
         </div>
       </div>
-
       <div style={{ padding: "10px 12px" }}>
         <div
           style={{
-            fontSize: 13,
-            fontWeight: 700,
-            color: COLORS.text,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            marginBottom: 4,
+            fontSize: 13, fontWeight: 700, color: COLORS.text,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4,
           }}
           title={ranking.name_en}
         >
           {ranking.name_en}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-          <span style={{ color: COLORS.accent, fontWeight: 700 }}>
-            ★ {ranking.avg_rating?.toFixed(2)}
-          </span>
+          <span style={{ color: COLORS.accent, fontWeight: 700 }}>★ {ranking.avg_rating?.toFixed(2)}</span>
           <span style={{ color: COLORS.subLight }}>· {ranking.year_published}</span>
         </div>
       </div>
     </div>
   );
 }
+
+// ── 공통 스타일 ──────────────────────────────────────────────
+const scrollContainerStyle = {
+  display: "flex",
+  gap: 12,
+  overflowX: "auto",
+  paddingBottom: 12,
+  scrollbarWidth: "thin",
+  WebkitOverflowScrolling: "touch",
+};
 
 const inputStyle = {
   background: COLORS.surface,
@@ -465,8 +596,7 @@ const inputStyle = {
 
 const iconStyle = {
   position: "absolute",
-  left: 12,
-  top: "50%",
+  left: 12, top: "50%",
   transform: "translateY(-50%)",
   fontSize: 14,
   pointerEvents: "none",

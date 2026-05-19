@@ -105,7 +105,7 @@ function StarRating({ value, onChange, size = 24 }) {
   );
 }
 
-export default function GameCard({ game, session, reviewSummary, onReviewSaved, bggData }) {
+export default function GameCard({ game, session, reviewSummary, onReviewSaved, bggData, autoOpen = false, onClose }) {
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 640;
   const formPanelRef = useRef(null);
@@ -144,6 +144,11 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
   const [showProposalModal, setShowProposalModal] = useState(false);
 
   const genreStyle = getGenreStyle(game.genre);
+
+  // BogiRankCard 등에서 즉시 열기 요청 시
+  useEffect(() => {
+    if (autoOpen) open();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     document.body.style.overflow = expanded ? "hidden" : "";
@@ -224,7 +229,10 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
     resetForm();
     setMyGameReviews(null);
     setConfirmDeleteId(null);
-    setTimeout(() => setExpanded(false), 600);
+    setTimeout(() => {
+      setExpanded(false);
+      onClose?.();
+    }, 600);
   };
 
   // 저장 (신규 INSERT or 수정 UPDATE)

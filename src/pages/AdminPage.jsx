@@ -60,16 +60,6 @@ export default function AdminPage({ session, profile }) {
   const [counts, setCounts]         = useState({});
   const [processing, setProcessing] = useState(null);
 
-  // 비관리자 접근 차단
-  if (!profile?.is_admin) {
-    return (
-      <main style={{ maxWidth: 600, margin: "0 auto", padding: "80px 24px", textAlign: "center", color: COLORS.sub }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-        <div style={{ fontWeight: 700, fontSize: 16 }}>접근 권한이 없습니다.</div>
-      </main>
-    );
-  }
-
   const loadEdits = useCallback(async () => {
     setLoading(true);
 
@@ -96,7 +86,7 @@ export default function AdminPage({ session, profile }) {
     setLoading(false);
   }, [activeTab]);
 
-  const loadCounts = async () => {
+  const loadCounts = useCallback(async () => {
     const statuses = ["pending", "approved", "rejected"];
     const results = await Promise.all(
       statuses.map((s) =>
@@ -106,10 +96,20 @@ export default function AdminPage({ session, profile }) {
     const map = {};
     statuses.forEach((s, i) => { map[s] = results[i].count ?? 0; });
     setCounts(map);
-  };
+  }, []);
 
   useEffect(() => { loadEdits(); }, [loadEdits]);
-  useEffect(() => { loadCounts(); }, []);
+  useEffect(() => { loadCounts(); }, [loadCounts]);
+
+  // 비관리자 접근 차단
+  if (!profile?.is_admin) {
+    return (
+      <main style={{ maxWidth: 600, margin: "0 auto", padding: "80px 24px", textAlign: "center", color: COLORS.sub }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>접근 권한이 없습니다.</div>
+      </main>
+    );
+  }
 
   const handleApprove = async (edit) => {
     setProcessing(edit.id + "_approve");
