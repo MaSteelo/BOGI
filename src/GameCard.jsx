@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
+import EditProposalModal from "./components/EditProposalModal";
 
 const COLORS = {
   bg: "#fafafa",
@@ -138,6 +139,9 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
   // 토스트
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+
+  // 편집 제안 모달
+  const [showProposalModal, setShowProposalModal] = useState(false);
 
   const genreStyle = getGenreStyle(game.genre);
 
@@ -520,18 +524,20 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                           <div style={{ fontSize: 12, color: COLORS.sub, lineHeight: 1.6, flex: 1 }}>
                             {game.description || "설명이 아직 없습니다."}
                           </div>
-                          <button
-                            onClick={() => alert("준비 중입니다 ✏️")}
-                            style={{
-                              marginTop: 12, alignSelf: "flex-start",
-                              background: "rgba(255,255,255,0.5)", border: "1px solid rgba(0,0,0,0.1)",
-                              borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600,
-                              color: COLORS.sub, cursor: "pointer", display: "flex", alignItems: "center",
-                              gap: 4, fontFamily: "inherit",
-                            }}
-                          >
-                            ✏️ 편집 제안
-                          </button>
+                          {session && (
+                            <button
+                              onClick={() => setShowProposalModal(true)}
+                              style={{
+                                marginTop: 12, alignSelf: "flex-start",
+                                background: "rgba(255,255,255,0.5)", border: "1px solid rgba(0,0,0,0.1)",
+                                borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600,
+                                color: COLORS.sub, cursor: "pointer", display: "flex", alignItems: "center",
+                                gap: 4, fontFamily: "inherit",
+                              }}
+                            >
+                              ✏️ 편집 제안
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -859,6 +865,16 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
             </div>
           </div>
         </>
+      )}
+
+      {/* 편집 제안 모달 */}
+      {showProposalModal && session && (
+        <EditProposalModal
+          game={game}
+          session={session}
+          onClose={() => setShowProposalModal(false)}
+          onSubmitted={() => showToast("✅ 제안이 접수되었습니다")}
+        />
       )}
 
       {/* 토스트 */}

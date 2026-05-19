@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import Auth from "./Auth";
 import Home from "./pages/Home";
 import MyPage from "./pages/MyPage";
+import AdminPage from "./pages/AdminPage";
 
 const COLORS = {
   bg: "#fafafa",
@@ -108,7 +109,7 @@ function TabBtn({ icon, label, active, onClick }) {
   );
 }
 
-function BottomTabBar() {
+function BottomTabBar({ isAdmin }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -187,6 +188,16 @@ function BottomTabBar() {
         active={pathname === "/mypage"}
         onClick={() => navigate("/mypage")}
       />
+
+      {/* 관리자에게만 보이는 편집 검토 탭 */}
+      {isAdmin && (
+        <TabBtn
+          icon="🛠"
+          label="검토"
+          active={pathname === "/admin"}
+          onClick={() => navigate("/admin")}
+        />
+      )}
     </nav>
   );
 }
@@ -256,9 +267,10 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home session={session} />} />
           <Route path="/mypage" element={<MyPage session={session} profile={profile} />} />
+          <Route path="/admin" element={<AdminPage session={session} profile={profile} />} />
         </Routes>
       </div>
-      <BottomTabBar />
+      <BottomTabBar isAdmin={profile?.is_admin ?? false} />
     </div>
   );
 }
