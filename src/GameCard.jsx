@@ -484,9 +484,20 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
             justifyContent: "center",
             fontSize: isMobile ? 28 : 56,
             position: "relative",
+            overflow: "hidden",
           }}
         >
-          <span style={{ opacity: 0.9 }}>{genreStyle.emoji}</span>
+          {game.image_url ? (
+            <img
+              src={game.image_url}
+              alt={game.name_ko}
+              loading="lazy"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            <span style={{ opacity: 0.9 }}>{genreStyle.emoji}</span>
+          )}
           {game.genre?.length > 0 && (
             <div style={badgeStyle("rgba(255,255,255,0.85)", COLORS.text, { top: 8, left: 8 })}>
               {isMobile && game.genre[0].length > 4
@@ -599,9 +610,20 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                     borderRadius: 20,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: 100,
+                    overflow: "hidden",
                   }}
                 >
-                  {genreStyle.emoji}
+                  {game.image_url ? (
+                    <img
+                      src={game.image_url}
+                      alt={game.name_ko}
+                      loading="lazy"
+                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: 20 }}
+                    />
+                  ) : (
+                    genreStyle.emoji
+                  )}
                 </div>
 
                 {/* 뒷면 */}

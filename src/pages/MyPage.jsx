@@ -193,7 +193,7 @@ export default function MyPage({ session, profile }) {
     const { data } = await supabase
       .from("reviews")
       .select(
-        "*, games(id, name_ko, name_en, genre, min_players, max_players, play_minutes, bgg_rank, publisher, description, min_age)"
+        "*, games(id, name_ko, name_en, genre, min_players, max_players, play_minutes, bgg_rank, publisher, description, min_age, image_url)"
       )
       .eq("user_id", session.user.id)
       .order("created_at", { ascending: false });

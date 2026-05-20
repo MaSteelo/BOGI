@@ -513,9 +513,20 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
             background: `linear-gradient(135deg, ${genreStyle.grad[0]}, ${genreStyle.grad[1]})`,
             display: "flex", alignItems: "center", justifyContent: "center",
             position: "relative", fontSize: emojiFz,
+            overflow: "hidden",
           }}
         >
-          {genreStyle.emoji}
+          {game.image_url ? (
+            <img
+              src={game.image_url}
+              alt={game.name_ko}
+              loading="lazy"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            genreStyle.emoji
+          )}
           {/* 순위 배지 */}
           <div
             style={{
