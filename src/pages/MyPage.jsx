@@ -356,9 +356,9 @@ export default function MyPage({ session, profile }) {
         {/* 통계 3종 */}
         {stats ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: isMobile ? 8 : 12 }}>
-            <StatCard value={stats.totalRecords} label="총 기록" unit="회" />
-            <StatCard value={stats.uniqueGames} label="플레이 게임" unit="종" />
-            <StatCard value={stats.mostPlayed.name} label="최다 플레이" sub={`${stats.mostPlayed.count}회`} truncate />
+            <StatCard value={stats.totalRecords} label="총 기록" unit="회" icon="📝" isMobile={isMobile} />
+            <StatCard value={stats.uniqueGames} label="플레이 게임" unit="종" icon="🎮" isMobile={isMobile} />
+            <StatCard value={stats.mostPlayed.name} label="최다 플레이" sub={`${stats.mostPlayed.count}회`} truncate icon="🏆" isMobile={isMobile} />
           </div>
         ) : (
           <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: "28px", textAlign: "center", color: COLORS.subLight, fontSize: 14 }}>
@@ -492,20 +492,25 @@ export default function MyPage({ session, profile }) {
 }
 
 // ── 통계 카드 ──
-function StatCard({ value, label, unit = "", sub, truncate, starDisplay }) {
+function StatCard({ value, label, unit = "", sub, truncate, icon, isMobile }) {
   return (
     <div
       style={{
         background: COLORS.surface,
         border: `1px solid ${COLORS.border}`,
         borderRadius: 14,
-        padding: "16px 12px",
+        padding: isMobile ? "12px 8px" : "16px 12px",
         textAlign: "center",
       }}
     >
+      {icon && (
+        <div style={{ fontSize: isMobile ? 16 : 20, marginBottom: isMobile ? 3 : 4, lineHeight: 1 }}>
+          {icon}
+        </div>
+      )}
       <div
         style={{
-          fontSize: truncate ? 16 : 24,
+          fontSize: truncate ? (isMobile ? 12 : 15) : (isMobile ? 20 : 24),
           fontWeight: 900,
           color: COLORS.text,
           lineHeight: 1.1,
@@ -517,20 +522,15 @@ function StatCard({ value, label, unit = "", sub, truncate, starDisplay }) {
       >
         {value}
         {unit && !truncate && (
-          <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.sub, marginLeft: 2 }}>
+          <span style={{ fontSize: isMobile ? 11 : 13, fontWeight: 600, color: COLORS.sub, marginLeft: 2 }}>
             {unit}
           </span>
         )}
       </div>
-      {starDisplay && (
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 2 }}>
-          {starDisplay}
-        </div>
-      )}
       {sub && (
-        <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 2 }}>{sub}</div>
+        <div style={{ fontSize: isMobile ? 10 : 12, color: COLORS.sub, marginBottom: 2 }}>{sub}</div>
       )}
-      <div style={{ fontSize: 11, color: COLORS.subLight, marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: isMobile ? 9 : 11, color: COLORS.subLight, marginTop: 3 }}>{label}</div>
     </div>
   );
 }

@@ -477,9 +477,10 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
 
   const badgeColor = rank <= 3 ? RANK_COLORS[rank - 1] : COLORS.accent;
   const genreStyle = getGenreStyle(game.genre);
-  const cardW = isMobile ? 110 : 152;
-  const imgH = isMobile ? 70 : 90;
-  const emojiFz = isMobile ? 28 : 38;
+  const cardW = isMobile ? 120 : 152;
+  const imgH = isMobile ? 76 : 90;
+  const emojiFz = isMobile ? 30 : 38;
+  const hasMyScore = reviewSummary?.latestScore != null;
 
   return (
     <>
@@ -509,6 +510,7 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
           }}
         >
           {genreStyle.emoji}
+          {/* 순위 배지 */}
           <div
             style={{
               position: "absolute", top: 6, left: 6,
@@ -520,6 +522,20 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
           >
             #{rank}
           </div>
+          {/* 내 평점 배지 */}
+          {hasMyScore && (
+            <div
+              style={{
+                position: "absolute", top: 6, right: 6,
+                background: "rgba(255,107,53,0.92)", color: "#fff",
+                fontSize: 9, fontWeight: 800,
+                padding: "2px 5px", borderRadius: 6,
+                boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+              }}
+            >
+              내 평점
+            </div>
+          )}
         </div>
 
         {/* 게임 정보 */}
@@ -529,26 +545,27 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
             style={{
               fontSize: isMobile ? 11 : 13, fontWeight: 700, color: COLORS.text,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              marginBottom: 4,
+              marginBottom: 5,
             }}
           >
             {game.name_ko}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "wrap" }}>
+          {/* 커뮤니티 평균 */}
+          <div style={{ display: "flex", alignItems: "center", gap: 3, overflow: "hidden" }}>
             <HalfStarDisplay value={avg} size={isMobile ? 11 : 12} />
-            <span style={{ fontSize: isMobile ? 10 : 11, color: COLORS.accent, fontWeight: 700 }}>
+            <span style={{ fontSize: isMobile ? 10 : 11, color: COLORS.accent, fontWeight: 700, flexShrink: 0 }}>
               {avg.toFixed(1)}
             </span>
-            <span style={{ fontSize: isMobile ? 9 : 10, color: COLORS.subLight }}>
+            <span style={{ fontSize: isMobile ? 9 : 10, color: COLORS.subLight, flexShrink: 0 }}>
               · {count}개
             </span>
           </div>
-          {reviewSummary?.latestScore != null && (
-            <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 3 }}>
-              <span style={{ fontSize: isMobile ? 9 : 10, color: COLORS.subLight }}>내 평점</span>
+          {/* 내 평점 — 구분선으로 명확히 분리 */}
+          {hasMyScore && (
+            <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 4, paddingTop: 4, borderTop: `1px solid ${COLORS.border}` }}>
               <HalfStarDisplay value={reviewSummary.latestScore} size={isMobile ? 10 : 11} />
-              <span style={{ fontSize: isMobile ? 9 : 10, color: COLORS.sub, fontWeight: 700 }}>
-                {reviewSummary.latestScore.toFixed(1)}
+              <span style={{ fontSize: isMobile ? 10 : 11, color: COLORS.accent, fontWeight: 700, flexShrink: 0 }}>
+                나 {reviewSummary.latestScore.toFixed(1)}
               </span>
             </div>
           )}

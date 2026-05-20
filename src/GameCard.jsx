@@ -454,7 +454,9 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
           <span style={{ opacity: 0.9 }}>{genreStyle.emoji}</span>
           {game.genre?.length > 0 && (
             <div style={badgeStyle("rgba(255,255,255,0.85)", COLORS.text, { top: 8, left: 8 })}>
-              {game.genre[0]}
+              {isMobile && game.genre[0].length > 4
+                ? game.genre[0].slice(0, 4) + "…"
+                : game.genre[0]}
             </div>
           )}
           {reviewSummary && (
@@ -976,11 +978,15 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                     {/* ── 다른 사람 리뷰 ── */}
                     {(() => {
                       if (allReviews === null) return null;
+                      // 집계는 전체(본인 포함) 기준, 목록 노출만 본인 제외
                       const scores = allReviews.filter((r) => r.total_score > 0).map((r) => r.total_score);
                       const avg = scores.length > 0
                         ? scores.reduce((a, b) => a + b, 0) / scores.length
                         : null;
-                      const visible = allReviews.slice(0, reviewsShowCount);
+                      const othersReviews = session
+                        ? allReviews.filter((r) => r.user_id !== session.user.id)
+                        : allReviews;
+                      const visible = othersReviews.slice(0, reviewsShowCount);
                       return (
                         <>
                           <div style={{ height: 1, background: COLORS.border, marginBottom: 16 }} />
@@ -998,40 +1004,37 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                           </div>
                           {allReviewsLoading ? (
                             <div style={{ textAlign: "center", fontSize: 12, color: COLORS.subLight, padding: "12px 0" }}>불러오는 중...</div>
-                          ) : allReviews.length === 0 ? (
+                          ) : othersReviews.length === 0 ? (
                             <div style={{ textAlign: "center", fontSize: 12, color: COLORS.subLight, padding: "16px 0", lineHeight: 1.6 }}>
-                              아직 리뷰가 없어요.<br />첫 기록을 남겨보세요!
+                              다른 사람의 리뷰가 아직 없어요.
                             </div>
                           ) : (
                             <>
                               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                {visible.map((review) => {
-                                  const isMe = review.user_id === session?.user?.id;
-                                  return (
-                                    <div key={review.id} style={{ background: isMe ? "#fff7f5" : COLORS.bg, border: `1px solid ${isMe ? "#ffd6c8" : COLORS.border}`, borderRadius: 8, padding: "10px 12px" }}>
-                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 4 }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                          <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? COLORS.accent : COLORS.text }}>{isMe ? "나" : review.nickname}</span>
-                                          {review.total_score > 0 && (
-                                            <>
-                                              <HalfStarDisplay value={review.total_score} size={11} />
-                                              <span style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700 }}>{Number(review.total_score).toFixed(1)}</span>
-                                            </>
-                                          )}
-                                        </div>
-                                        <span style={{ fontSize: 10, color: COLORS.subLight }}>{review.played_at || review.created_at?.slice(0, 10)}</span>
+                                {visible.map((review) => (
+                                  <div key={review.id} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "10px 12px" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 4 }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.text }}>{review.nickname}</span>
+                                        {review.total_score > 0 && (
+                                          <>
+                                            <HalfStarDisplay value={review.total_score} size={11} />
+                                            <span style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700 }}>{Number(review.total_score).toFixed(1)}</span>
+                                          </>
+                                        )}
                                       </div>
-                                      {!review.participants_private && review.participants && (
-                                        <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: review.memo ? 3 : 0 }}>👥 {review.participants}</div>
-                                      )}
-                                      {review.memo && <div style={{ fontSize: 11, color: COLORS.sub, lineHeight: 1.5, wordBreak: "break-word" }}>{review.memo}</div>}
+                                      <span style={{ fontSize: 10, color: COLORS.subLight }}>{review.played_at || review.created_at?.slice(0, 10)}</span>
                                     </div>
-                                  );
-                                })}
+                                    {!review.participants_private && review.participants && (
+                                      <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: review.memo ? 3 : 0 }}>👥 {review.participants}</div>
+                                    )}
+                                    {review.memo && <div style={{ fontSize: 11, color: COLORS.sub, lineHeight: 1.5, wordBreak: "break-word" }}>{review.memo}</div>}
+                                  </div>
+                                ))}
                               </div>
-                              {allReviews.length > reviewsShowCount && (
+                              {othersReviews.length > reviewsShowCount && (
                                 <button onClick={() => setReviewsShowCount((n) => n + 10)} style={{ width: "100%", marginTop: 8, padding: "8px 0", fontSize: 12, fontWeight: 600, background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.sub, cursor: "pointer", fontFamily: "inherit" }}>
-                                  더 보기 (+{allReviews.length - reviewsShowCount}개)
+                                  더 보기 (+{othersReviews.length - reviewsShowCount}개)
                                 </button>
                               )}
                             </>
