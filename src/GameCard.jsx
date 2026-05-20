@@ -209,6 +209,9 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
   const [allReviewsLoading, setAllReviewsLoading] = useState(false);
   const [reviewsShowCount, setReviewsShowCount] = useState(10);
 
+  // 공감 상태: { [reviewId]: { count: number, likedByMe: boolean } }
+  const [likesMap, setLikesMap] = useState({});
+
   // 토스트
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -320,17 +323,48 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
       return;
     }
 
+    const reviewIds = reviewRows.map((r) => r.id);
     const userIds = [...new Set(reviewRows.map((r) => r.user_id))];
-    const { data: profileRows } = await supabase
-      .from("profiles")
-      .select("id, nickname")
-      .in("id", userIds);
+
+    const [{ data: profileRows }, { data: likesRows }] = await Promise.all([
+      supabase.from("profiles").select("id, nickname").in("id", userIds),
+      supabase.from("review_likes").select("review_id, user_id").in("review_id", reviewIds),
+    ]);
 
     const nickMap = {};
     profileRows?.forEach((p) => { nickMap[p.id] = p.nickname || "익명"; });
 
+    const lMap = {};
+    reviewIds.forEach((id) => { lMap[id] = { count: 0, likedByMe: false }; });
+    likesRows?.forEach((l) => {
+      if (lMap[l.review_id]) {
+        lMap[l.review_id].count++;
+        if (session && l.user_id === session.user.id) lMap[l.review_id].likedByMe = true;
+      }
+    });
+
     setAllReviews(reviewRows.map((r) => ({ ...r, nickname: nickMap[r.user_id] || "익명" })));
+    setLikesMap(lMap);
     setAllReviewsLoading(false);
+  };
+
+  const toggleLike = async (reviewId) => {
+    if (!session) { showToast("로그인이 필요합니다"); return; }
+    const current = likesMap[reviewId] || { count: 0, likedByMe: false };
+    const wasLiked = current.likedByMe;
+    // 낙관적 업데이트
+    setLikesMap((prev) => ({
+      ...prev,
+      [reviewId]: { count: wasLiked ? Math.max(0, current.count - 1) : current.count + 1, likedByMe: !wasLiked },
+    }));
+    const { error } = wasLiked
+      ? await supabase.from("review_likes").delete().eq("review_id", reviewId).eq("user_id", session.user.id)
+      : await supabase.from("review_likes").insert({ review_id: reviewId, user_id: session.user.id });
+    if (error) {
+      console.error("공감 오류:", error.code, error.message, error);
+      setLikesMap((prev) => ({ ...prev, [reviewId]: current }));
+      showToast("공감 처리 중 오류가 발생했습니다");
+    }
   };
 
   const open = () => {
@@ -344,6 +378,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
     resetForm();
     setMyGameReviews(null);
     setAllReviews(null);
+    setLikesMap({});
     setReviewsShowCount(10);
     setConfirmDeleteId(null);
     setShowWriteForm(false);
@@ -1029,6 +1064,31 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                                       <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: review.memo ? 3 : 0 }}>👥 {review.participants}</div>
                                     )}
                                     {review.memo && <div style={{ fontSize: 11, color: COLORS.sub, lineHeight: 1.5, wordBreak: "break-word" }}>{review.memo}</div>}
+                                    {review.user_id !== session?.user.id && (
+                                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                                        <button
+                                          onClick={() => toggleLike(review.id)}
+                                          style={{
+                                            display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                                            background: likesMap[review.id]?.likedByMe ? COLORS.accentLight : "transparent",
+                                            border: `1px solid ${likesMap[review.id]?.likedByMe ? COLORS.accent : COLORS.border}`,
+                                            borderRadius: 20, padding: "0 12px",
+                                            cursor: "pointer", fontFamily: "inherit",
+                                            color: likesMap[review.id]?.likedByMe ? COLORS.accent : COLORS.subLight,
+                                            fontSize: 12, fontWeight: 600,
+                                            height: isMobile ? 44 : 28, minWidth: isMobile ? 44 : undefined,
+                                            transition: "all 0.15s",
+                                          }}
+                                        >
+                                          <span style={{ fontSize: 14, lineHeight: 1 }}>
+                                            {likesMap[review.id]?.likedByMe ? "♥" : "♡"}
+                                          </span>
+                                          {(likesMap[review.id]?.count || 0) > 0 && (
+                                            <span>{likesMap[review.id].count}</span>
+                                          )}
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 ))}
                               </div>
