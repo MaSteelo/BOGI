@@ -173,6 +173,12 @@ export default function Home({ session }) {
     return map;
   }, [rankings]);
 
+  const bggRankToGameId = useMemo(() => {
+    const map = {};
+    games.forEach((g) => { if (g.bgg_rank) map[g.bgg_rank] = g.id; });
+    return map;
+  }, [games]);
+
   const allGenres = useMemo(() => {
     const set = new Set();
     games.forEach((g) => g.genre?.forEach((x) => set.add(x)));
@@ -248,7 +254,7 @@ export default function Home({ session }) {
           </div>
           <div style={scrollContainerStyle}>
             {rankings.map((r) => (
-              <RankCard key={r.rank} ranking={r} isMobile={isMobile} />
+              <RankCard key={r.rank} ranking={r} isMobile={isMobile} reviewSummary={reviewSummary[bggRankToGameId[r.rank]] || null} />
             ))}
           </div>
         </section>
@@ -522,18 +528,17 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
           >
             #{rank}
           </div>
-          {/* 내 평점 배지 */}
+          {/* 내 별점 배지 */}
           {hasMyScore && (
             <div
               style={{
                 position: "absolute", top: 6, right: 6,
-                background: "rgba(255,107,53,0.92)", color: "#fff",
-                fontSize: 9, fontWeight: 800,
-                padding: "2px 5px", borderRadius: 6,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                background: "rgba(255,107,53,0.88)", backdropFilter: "blur(4px)", color: "#fff",
+                fontSize: 10, fontWeight: 700,
+                padding: "3px 8px", borderRadius: 10,
               }}
             >
-              내 평점
+              ⭐ {reviewSummary.latestScore.toFixed(1)}
             </div>
           )}
         </div>
@@ -560,15 +565,6 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
               · {count}개
             </span>
           </div>
-          {/* 내 평점 — 구분선으로 명확히 분리 */}
-          {hasMyScore && (
-            <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 4, paddingTop: 4, borderTop: `1px solid ${COLORS.border}` }}>
-              <HalfStarDisplay value={reviewSummary.latestScore} size={isMobile ? 10 : 11} />
-              <span style={{ fontSize: isMobile ? 10 : 11, color: COLORS.accent, fontWeight: 700, flexShrink: 0 }}>
-                나 {reviewSummary.latestScore.toFixed(1)}
-              </span>
-            </div>
-          )}
         </div>
       </div>
 
@@ -591,10 +587,11 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
 }
 
 // ── BGG 글로벌 TOP 카드 ──────────────────────────────────────
-function RankCard({ ranking, isMobile }) {
+function RankCard({ ranking, isMobile, reviewSummary }) {
   const [hovered, setHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
   const cardW = isMobile ? 120 : 160;
+  const hasMyScore = reviewSummary?.latestScore != null;
 
   return (
     <div
@@ -638,6 +635,16 @@ function RankCard({ ranking, isMobile }) {
         }}>
           #{ranking.rank}
         </div>
+        {hasMyScore && (
+          <div style={{
+            position: "absolute", top: 6, right: 6,
+            background: "rgba(255,107,53,0.88)", backdropFilter: "blur(4px)", color: "#fff",
+            fontSize: 10, fontWeight: 700,
+            padding: "3px 8px", borderRadius: 10,
+          }}>
+            ⭐ {reviewSummary.latestScore.toFixed(1)}
+          </div>
+        )}
       </div>
       <div style={{ padding: isMobile ? "8px 9px" : "10px 12px" }}>
         <div
