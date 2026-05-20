@@ -543,6 +543,15 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
               · {count}개
             </span>
           </div>
+          {reviewSummary?.latestScore != null && (
+            <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 3 }}>
+              <span style={{ fontSize: isMobile ? 9 : 10, color: COLORS.subLight }}>내 평점</span>
+              <HalfStarDisplay value={reviewSummary.latestScore} size={isMobile ? 10 : 11} />
+              <span style={{ fontSize: isMobile ? 9 : 10, color: COLORS.sub, fontWeight: 700 }}>
+                {reviewSummary.latestScore.toFixed(1)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

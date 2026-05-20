@@ -215,13 +215,15 @@ export default function AdminPage({ session, profile }) {
     );
   }
 
-  // 알림 생성 (fire-and-forget)
+  // 알림 생성
   const insertNotification = (userId, type, title, body, relatedId) => {
     supabase.from("notifications").insert({
       user_id: userId, type, title,
       body: body ?? null,
       related_id: relatedId ?? null,
       is_read: false,
+    }).then(({ error }) => {
+      if (error) console.error("알림 생성 실패:", error.message, error);
     });
   };
 

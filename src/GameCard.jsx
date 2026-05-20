@@ -201,6 +201,8 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
   // 이전 기록 상태
   const [myGameReviews, setMyGameReviews] = useState(null);
   const [loadingReviews, setLoadingReviews] = useState(false);
+  const [showWriteForm, setShowWriteForm] = useState(false);
+  const [showOlderMyReviews, setShowOlderMyReviews] = useState(false);
 
   // 전체 리뷰 목록 상태
   const [allReviews, setAllReviews] = useState(null); // null=미로드
@@ -284,6 +286,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
     setParticipantsPrivate(review.participants_private || false);
     setMessage("");
     setConfirmDeleteId(null);
+    setShowWriteForm(true);
     formPanelRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -296,7 +299,9 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
       .eq("game_id", game.id)
       .eq("user_id", session.user.id)
       .order("created_at", { ascending: false });
-    setMyGameReviews(data || []);
+    const reviews = data || [];
+    setMyGameReviews(reviews);
+    setShowWriteForm(reviews.length === 0);
     setLoadingReviews(false);
   };
 
@@ -341,6 +346,8 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
     setAllReviews(null);
     setReviewsShowCount(10);
     setConfirmDeleteId(null);
+    setShowWriteForm(false);
+    setShowOlderMyReviews(false);
     setTimeout(() => {
       setExpanded(false);
       onClose?.();
@@ -407,9 +414,11 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
     }
 
     setConfirmDeleteId(null);
-    setMyGameReviews((prev) => prev.filter((r) => r.id !== reviewId));
+    const newMyReviews = (myGameReviews || []).filter((r) => r.id !== reviewId);
+    setMyGameReviews(newMyReviews);
     setAllReviews((prev) => prev ? prev.filter((r) => r.id !== reviewId) : prev);
     if (editingReviewId === reviewId) resetForm();
+    if (newMyReviews.length === 0) setShowWriteForm(true);
     onReviewSaved?.();
     showToast("🗑️ 기록이 삭제되었어요");
   };
@@ -672,7 +681,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                     </div>
                   </div>
 
-                  {/* 오른쪽 / 하단: 리뷰 폼 */}
+                  {/* 오른쪽 / 하단 */}
                   <div
                     ref={formPanelRef}
                     style={{
@@ -681,331 +690,290 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                       display: "flex", flexDirection: "column", minHeight: 0,
                     }}
                   >
-                    {/* 폼 헤더 */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-                      <div>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: COLORS.text }}>
-                          {editingReviewId ? "기록 수정하기" : "보드게임 기록하기"}
-                        </div>
-                        <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 2 }}>{game.name_ko}</div>
+                    {/* 헤더 */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: COLORS.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 8 }}>
+                        {game.name_ko}
                       </div>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        {editingReviewId && (
-                          <button
-                            onClick={resetForm}
-                            style={{
-                              background: COLORS.bg, border: `1px solid ${COLORS.border}`,
-                              borderRadius: 8, cursor: "pointer", color: COLORS.sub,
-                              fontSize: 11, fontWeight: 600, padding: "5px 10px", fontFamily: "inherit",
-                            }}
-                          >
-                            + 새 기록
-                          </button>
-                        )}
-                        <button
-                          onClick={close}
-                          style={{
-                            background: COLORS.bg, border: `1px solid ${COLORS.border}`,
-                            borderRadius: 8, cursor: "pointer", color: COLORS.sub, fontSize: 14,
-                            width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
-                            flexShrink: 0, fontFamily: "inherit",
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 편집 제안 버튼 — 모바일에서는 PC 왼쪽 패널 대신 여기에 표시 */}
-                    {isMobile && session && (
                       <button
-                        onClick={() => setShowProposalModal(true)}
+                        onClick={close}
                         style={{
-                          alignSelf: "flex-start",
                           background: COLORS.bg, border: `1px solid ${COLORS.border}`,
-                          borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600,
-                          color: COLORS.sub, cursor: "pointer",
-                          display: "flex", alignItems: "center", gap: 4,
-                          fontFamily: "inherit", marginBottom: 16,
+                          borderRadius: 8, cursor: "pointer", color: COLORS.sub, fontSize: 14,
+                          width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+                          flexShrink: 0, fontFamily: "inherit",
                         }}
                       >
-                        ✏️ 정보 수정 제안
+                        ✕
                       </button>
-                    )}
-
-                    {/* 총점 (필수) */}
-                    <div
-                      style={{
-                        background: COLORS.bg, border: `1px solid ${COLORS.border}`,
-                        borderRadius: 12, padding: "16px", marginBottom: 12, textAlign: "center",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 12 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.sub }}>⭐ 총점</span>
-                        <span style={{ fontSize: 10, color: COLORS.accent, fontWeight: 700, background: COLORS.accentLight, padding: "1px 6px", borderRadius: 4 }}>
-                          필수
-                        </span>
-                      </div>
-                      <HalfStarRating value={totalScore} onChange={setTotalScore} size={isMobile ? 44 : 30} />
-                      <div style={{ marginTop: 8, fontSize: 14, fontWeight: 700, color: totalScore > 0 ? COLORS.accent : COLORS.subLight }}>
-                        {totalScore > 0 ? `${Number(totalScore).toFixed(1)} / 5` : "별을 선택해주세요"}
-                      </div>
                     </div>
 
-                    {/* 세부 별점 (선택) */}
-                    <div style={{ marginBottom: 16 }}>
-                      <button
-                        onClick={() => setDetailExpanded((v) => !v)}
-                        style={{
-                          display: "flex", alignItems: "center", gap: 5,
-                          background: "none", border: "none", cursor: "pointer",
-                          color: COLORS.sub, fontSize: 12, fontWeight: 600,
-                          padding: "4px 0", fontFamily: "inherit",
-                        }}
-                      >
-                        세부 별점
-                        <span style={{ fontSize: 10, color: COLORS.subLight, fontWeight: 400 }}>선택</span>
-                        <span style={{ fontSize: 10 }}>{detailExpanded ? "▲" : "▼"}</span>
-                      </button>
-                      {detailExpanded && (
-                        <div style={{ marginTop: 10, padding: "12px 14px", background: COLORS.bg, borderRadius: 10, border: `1px solid ${COLORS.border}` }}>
-                          <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: 12, lineHeight: 1.5 }}>
-                            세부 별점은 통계에 반영되지 않습니다. 참고용으로 기록해요.
+                    {/* ── 내 기록 섹션 ── */}
+                    {session && (
+                      <div style={{ marginBottom: 24 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: COLORS.text, marginBottom: 10 }}>
+                          내 기록
+                        </div>
+
+                        {loadingReviews ? (
+                          <div style={{ textAlign: "center", fontSize: 12, color: COLORS.subLight, padding: "12px 0" }}>
+                            불러오는 중...
                           </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                            {DETAIL_FIELDS.map(({ key, label }) => (
-                              <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                <span style={{ fontSize: 12, color: COLORS.sub, fontWeight: 600, width: 52, flexShrink: 0 }}>
-                                  {label}
-                                </span>
-                                <StarRating
-                                  value={detailScores[key]}
-                                  onChange={(v) => setDetailScores((prev) => ({ ...prev, [key]: v }))}
-                                  size={20}
-                                />
+                        ) : myGameReviews === null ? null
+                        : myGameReviews.length === 0 ? (
+                          <>
+                            <div style={{ fontSize: 12, color: COLORS.subLight, textAlign: "center", padding: "4px 0 14px", lineHeight: 1.6 }}>
+                              이 게임의 첫 기록을 남겨보세요!
+                            </div>
+                            <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: "16px", marginBottom: 12, textAlign: "center" }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 12 }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.sub }}>⭐ 총점</span>
+                                <span style={{ fontSize: 10, color: COLORS.accent, fontWeight: 700, background: COLORS.accentLight, padding: "1px 6px", borderRadius: 4 }}>필수</span>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ height: 1, background: COLORS.border, marginBottom: 16 }} />
-
-                    {/* 날짜 + 참가자 */}
-                    <div style={{ display: "flex", gap: 12, marginBottom: 14, flexDirection: isMobile ? "column" : "row" }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={sectionLabel}>📅 플레이 날짜</label>
-                        <input
-                          type="date"
-                          value={playedAt}
-                          onChange={(e) => setPlayedAt(e.target.value)}
-                          style={inputStyle}
-                        />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={sectionLabel}>👥 참가자</label>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <input
-                            value={participants}
-                            onChange={(e) => setParticipants(e.target.value)}
-                            placeholder="예: 철수, 영희"
-                            style={{ ...inputStyle, flex: 1 }}
-                          />
-                          <button
-                            onClick={() => setParticipantsPrivate((v) => !v)}
-                            title={participantsPrivate ? "비공개 해제" : "비공개 설정"}
-                            style={{
-                              flexShrink: 0,
-                              border: `1px solid ${participantsPrivate ? COLORS.sub : COLORS.border}`,
-                              borderRadius: 8,
-                              padding: "0 10px",
-                              background: participantsPrivate ? "#f0f0f0" : "transparent",
-                              cursor: "pointer",
-                              fontSize: 14,
-                              fontFamily: "inherit",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 3,
-                              color: participantsPrivate ? COLORS.sub : COLORS.subLight,
-                              fontWeight: 600,
-                              transition: "all 0.15s",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            🔒
-                            {participantsPrivate && (
-                              <span style={{ fontSize: 10 }}>비공개</span>
-                            )}
-                          </button>
-                        </div>
-                        {participantsPrivate && (
-                          <div style={{ fontSize: 11, color: COLORS.subLight, marginTop: 4 }}>
-                            나만 볼 수 있어요
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 메모 */}
-                    <div style={{ marginBottom: 16, flex: 1 }}>
-                      <label style={sectionLabel}>📝 메모</label>
-                      <textarea
-                        value={memo}
-                        onChange={(e) => setMemo(e.target.value)}
-                        placeholder="후기, 최고 점수, 하우스룰, 다음 전략… 자유롭게 기록해요"
-                        rows={isMobile ? 3 : 4}
-                        style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }}
-                      />
-                    </div>
-
-                    {message && (
-                      <div style={{ fontSize: 13, padding: "10px 12px", borderRadius: 8, marginBottom: 12, background: "#fee2e2", color: COLORS.error }}>
-                        {message}
-                      </div>
-                    )}
-
-                    {/* 저장 버튼 */}
-                    <button
-                      onClick={handleSave}
-                      disabled={saving || totalScore === 0}
-                      style={{
-                        width: "100%",
-                        background: COLORS.accent,
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 10,
-                        padding: "12px 0",
-                        fontSize: 14, fontWeight: 700,
-                        cursor: saving || totalScore === 0 ? "not-allowed" : "pointer",
-                        opacity: saving || totalScore === 0 ? 0.45 : 1,
-                        transition: "opacity 0.15s",
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      {saving
-                        ? "저장 중..."
-                        : totalScore === 0
-                          ? "총점을 입력해주세요"
-                          : editingReviewId
-                            ? "수정하기"
-                            : "기록 저장하기"}
-                    </button>
-
-                    {/* 이전 기록 목록 */}
-                    {loadingReviews && (
-                      <div style={{ textAlign: "center", fontSize: 12, color: COLORS.subLight, marginTop: 20 }}>
-                        기록 불러오는 중...
-                      </div>
-                    )}
-                    {myGameReviews && myGameReviews.length > 0 && (
-                      <>
-                        <div style={{ height: 1, background: COLORS.border, margin: "20px 0 12px" }} />
-                        <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.sub, marginBottom: 10 }}>
-                          내 이전 기록 ({myGameReviews.length}회)
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                          {myGameReviews.map((review) => {
-                            const isCurrentEdit = editingReviewId === review.id;
-                            const isConfirming = confirmDeleteId === review.id;
-
-                            if (isConfirming) {
+                              <HalfStarRating value={totalScore} onChange={setTotalScore} size={isMobile ? 44 : 30} />
+                              <div style={{ marginTop: 8, fontSize: 14, fontWeight: 700, color: totalScore > 0 ? COLORS.accent : COLORS.subLight }}>
+                                {totalScore > 0 ? `${Number(totalScore).toFixed(1)} / 5` : "별을 선택해주세요"}
+                              </div>
+                            </div>
+                            <div style={{ marginBottom: 16 }}>
+                              <button onClick={() => setDetailExpanded((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", color: COLORS.sub, fontSize: 12, fontWeight: 600, padding: "4px 0", fontFamily: "inherit" }}>
+                                세부 별점 <span style={{ fontSize: 10, color: COLORS.subLight, fontWeight: 400 }}>선택</span>
+                                <span style={{ fontSize: 10 }}>{detailExpanded ? "▲" : "▼"}</span>
+                              </button>
+                              {detailExpanded && (
+                                <div style={{ marginTop: 10, padding: "12px 14px", background: COLORS.bg, borderRadius: 10, border: `1px solid ${COLORS.border}` }}>
+                                  <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: 12, lineHeight: 1.5 }}>세부 별점은 통계에 반영되지 않습니다.</div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    {DETAIL_FIELDS.map(({ key, label }) => (
+                                      <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                        <span style={{ fontSize: 12, color: COLORS.sub, fontWeight: 600, width: 52, flexShrink: 0 }}>{label}</span>
+                                        <StarRating value={detailScores[key]} onChange={(v) => setDetailScores((prev) => ({ ...prev, [key]: v }))} size={20} />
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ height: 1, background: COLORS.border, marginBottom: 16 }} />
+                            <div style={{ display: "flex", gap: 12, marginBottom: 14, flexDirection: isMobile ? "column" : "row" }}>
+                              <div style={{ flex: 1 }}>
+                                <label style={sectionLabel}>📅 플레이 날짜</label>
+                                <input type="date" value={playedAt} onChange={(e) => setPlayedAt(e.target.value)} style={inputStyle} />
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <label style={sectionLabel}>👥 참가자</label>
+                                <div style={{ display: "flex", gap: 6 }}>
+                                  <input value={participants} onChange={(e) => setParticipants(e.target.value)} placeholder="예: 철수, 영희" style={{ ...inputStyle, flex: 1 }} />
+                                  <button onClick={() => setParticipantsPrivate((v) => !v)} title={participantsPrivate ? "비공개 해제" : "비공개 설정"} style={{ flexShrink: 0, border: `1px solid ${participantsPrivate ? COLORS.sub : COLORS.border}`, borderRadius: 8, padding: "0 10px", background: participantsPrivate ? "#f0f0f0" : "transparent", cursor: "pointer", fontSize: 14, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 3, color: participantsPrivate ? COLORS.sub : COLORS.subLight, fontWeight: 600, transition: "all 0.15s", whiteSpace: "nowrap" }}>
+                                    🔒{participantsPrivate && <span style={{ fontSize: 10 }}>비공개</span>}
+                                  </button>
+                                </div>
+                                {participantsPrivate && <div style={{ fontSize: 11, color: COLORS.subLight, marginTop: 4 }}>나만 볼 수 있어요</div>}
+                              </div>
+                            </div>
+                            <div style={{ marginBottom: 16 }}>
+                              <label style={sectionLabel}>📝 메모</label>
+                              <textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="후기, 최고 점수, 하우스룰, 다음 전략… 자유롭게 기록해요" rows={isMobile ? 3 : 4} style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }} />
+                            </div>
+                            {message && <div style={{ fontSize: 13, padding: "10px 12px", borderRadius: 8, marginBottom: 12, background: "#fee2e2", color: COLORS.error }}>{message}</div>}
+                            <button onClick={handleSave} disabled={saving || totalScore === 0} style={{ width: "100%", background: COLORS.accent, color: "#fff", border: "none", borderRadius: 10, padding: "12px 0", fontSize: 14, fontWeight: 700, cursor: saving || totalScore === 0 ? "not-allowed" : "pointer", opacity: saving || totalScore === 0 ? 0.45 : 1, transition: "opacity 0.15s", fontFamily: "inherit" }}>
+                              {saving ? "저장 중..." : totalScore === 0 ? "총점을 입력해주세요" : "기록 저장하기"}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {/* 최신 기록 카드 */}
+                            {[myGameReviews[0]].map((review) => {
+                              const isConfirming = confirmDeleteId === review.id;
+                              const isCurrentEdit = editingReviewId === review.id;
+                              if (isConfirming) {
+                                return (
+                                  <div key={review.id} style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8, padding: "12px" }}>
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: "#991b1b", marginBottom: 10 }}>이 기록을 정말 삭제할까요?<br /><span style={{ fontWeight: 400, fontSize: 11 }}>되돌릴 수 없어요.</span></div>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                      <button onClick={() => setConfirmDeleteId(null)} style={{ flex: 1, padding: "7px 0", fontSize: 12, fontWeight: 700, border: "1px solid #fca5a5", borderRadius: 8, background: "#fff", color: COLORS.sub, cursor: "pointer", fontFamily: "inherit" }}>취소</button>
+                                      <button onClick={() => handleDelete(review.id)} style={{ flex: 1, padding: "7px 0", fontSize: 12, fontWeight: 700, border: "none", borderRadius: 8, background: COLORS.error, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>삭제</button>
+                                    </div>
+                                  </div>
+                                );
+                              }
                               return (
-                                <div
-                                  key={review.id}
-                                  style={{
-                                    background: "#fee2e2",
-                                    border: "1px solid #fca5a5",
-                                    borderRadius: 8,
-                                    padding: "12px",
-                                  }}
-                                >
-                                  <div style={{ fontSize: 12, fontWeight: 700, color: "#991b1b", marginBottom: 10 }}>
-                                    이 기록을 정말 삭제할까요?<br />
-                                    <span style={{ fontWeight: 400, fontSize: 11 }}>되돌릴 수 없어요.</span>
+                                <div key={review.id} style={{ background: isCurrentEdit ? "#fff7f5" : COLORS.bg, border: `1px solid ${isCurrentEdit ? COLORS.accent : COLORS.border}`, borderRadius: 8, padding: "10px 12px" }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                                    <span style={{ fontSize: 11, color: COLORS.sub }}>{review.played_at || review.created_at?.slice(0, 10)}</span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                      <span style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700, marginRight: 4 }}>{displayScore(review)}</span>
+                                      <button onClick={() => loadReviewIntoForm(review)} title="수정" style={iconBtnStyle}>✏️</button>
+                                      <button onClick={() => setConfirmDeleteId(review.id)} title="삭제" style={iconBtnStyle}>🗑️</button>
+                                    </div>
                                   </div>
-                                  <div style={{ display: "flex", gap: 8 }}>
-                                    <button
-                                      onClick={() => setConfirmDeleteId(null)}
-                                      style={{
-                                        flex: 1, padding: "7px 0", fontSize: 12, fontWeight: 700,
-                                        border: "1px solid #fca5a5", borderRadius: 8,
-                                        background: "#fff", color: COLORS.sub,
-                                        cursor: "pointer", fontFamily: "inherit",
-                                      }}
-                                    >
-                                      취소
-                                    </button>
-                                    <button
-                                      onClick={() => handleDelete(review.id)}
-                                      style={{
-                                        flex: 1, padding: "7px 0", fontSize: 12, fontWeight: 700,
-                                        border: "none", borderRadius: 8,
-                                        background: COLORS.error, color: "#fff",
-                                        cursor: "pointer", fontFamily: "inherit",
-                                      }}
-                                    >
-                                      삭제
-                                    </button>
-                                  </div>
+                                  {review.participants && <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: review.memo ? 3 : 0 }}>👥 {review.participants_private ? "🔒 비공개" : review.participants}</div>}
+                                  {review.memo && <div style={{ fontSize: 11, color: COLORS.sub, lineHeight: 1.5 }}>{review.memo}</div>}
                                 </div>
                               );
-                            }
+                            })}
 
-                            return (
-                              <div
-                                key={review.id}
-                                style={{
-                                  background: isCurrentEdit ? "#fff7f5" : COLORS.bg,
-                                  border: `1px solid ${isCurrentEdit ? COLORS.accent : COLORS.border}`,
-                                  borderRadius: 8,
-                                  padding: "10px 12px",
-                                }}
+                            {/* 이전 기록 더보기 */}
+                            {myGameReviews.length > 1 && (
+                              <>
+                                <button
+                                  onClick={() => setShowOlderMyReviews((v) => !v)}
+                                  style={{ width: "100%", marginTop: 6, padding: "6px 0", fontSize: 11, fontWeight: 600, background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.sub, cursor: "pointer", fontFamily: "inherit" }}
+                                >
+                                  {showOlderMyReviews ? "이전 기록 접기 ▲" : `이전 기록 더보기 (${myGameReviews.length - 1}개) ▼`}
+                                </button>
+                                {showOlderMyReviews && (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+                                    {myGameReviews.slice(1).map((review) => {
+                                      const isConfirming = confirmDeleteId === review.id;
+                                      const isCurrentEdit = editingReviewId === review.id;
+                                      if (isConfirming) {
+                                        return (
+                                          <div key={review.id} style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8, padding: "12px" }}>
+                                            <div style={{ fontSize: 12, fontWeight: 700, color: "#991b1b", marginBottom: 10 }}>이 기록을 정말 삭제할까요?<br /><span style={{ fontWeight: 400, fontSize: 11 }}>되돌릴 수 없어요.</span></div>
+                                            <div style={{ display: "flex", gap: 8 }}>
+                                              <button onClick={() => setConfirmDeleteId(null)} style={{ flex: 1, padding: "7px 0", fontSize: 12, fontWeight: 700, border: "1px solid #fca5a5", borderRadius: 8, background: "#fff", color: COLORS.sub, cursor: "pointer", fontFamily: "inherit" }}>취소</button>
+                                              <button onClick={() => handleDelete(review.id)} style={{ flex: 1, padding: "7px 0", fontSize: 12, fontWeight: 700, border: "none", borderRadius: 8, background: COLORS.error, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>삭제</button>
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+                                      return (
+                                        <div key={review.id} style={{ background: isCurrentEdit ? "#fff7f5" : COLORS.bg, border: `1px solid ${isCurrentEdit ? COLORS.accent : COLORS.border}`, borderRadius: 8, padding: "10px 12px" }}>
+                                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                                            <span style={{ fontSize: 11, color: COLORS.sub }}>{review.played_at || review.created_at?.slice(0, 10)}</span>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                              <span style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700, marginRight: 4 }}>{displayScore(review)}</span>
+                                              <button onClick={() => loadReviewIntoForm(review)} title="수정" style={iconBtnStyle}>✏️</button>
+                                              <button onClick={() => setConfirmDeleteId(review.id)} title="삭제" style={iconBtnStyle}>🗑️</button>
+                                            </div>
+                                          </div>
+                                          {review.participants && <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: review.memo ? 3 : 0 }}>👥 {review.participants_private ? "🔒 비공개" : review.participants}</div>}
+                                          {review.memo && <div style={{ fontSize: 11, color: COLORS.sub, lineHeight: 1.5 }}>{review.memo}</div>}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </>
+                            )}
+
+                            {/* 새 기록 추가 버튼 or 폼 */}
+                            {!(showWriteForm || !!editingReviewId) ? (
+                              <button
+                                onClick={() => { resetForm(); setShowWriteForm(true); }}
+                                style={{ width: "100%", marginTop: 8, padding: "8px 0", fontSize: 12, fontWeight: 700, background: COLORS.accentLight, border: `1px solid ${COLORS.accent}`, borderRadius: 8, color: COLORS.accent, cursor: "pointer", fontFamily: "inherit" }}
                               >
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                                  <span style={{ fontSize: 11, color: COLORS.sub }}>
-                                    {review.played_at || review.created_at?.slice(0, 10)}
+                                + 새 기록 추가
+                              </button>
+                            ) : (
+                              <div style={{ marginTop: 12, padding: "16px", background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 12 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 800, color: COLORS.text }}>
+                                    {editingReviewId ? "기록 수정하기" : "새 기록 추가"}
                                   </span>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                    <span style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700, marginRight: 4 }}>
-                                      {displayScore(review)}
-                                    </span>
-                                    <button
-                                      onClick={() => loadReviewIntoForm(review)}
-                                      title="수정"
-                                      style={iconBtnStyle}
-                                    >
-                                      ✏️
-                                    </button>
-                                    <button
-                                      onClick={() => setConfirmDeleteId(review.id)}
-                                      title="삭제"
-                                      style={iconBtnStyle}
-                                    >
-                                      🗑️
-                                    </button>
+                                  <button onClick={() => { resetForm(); setShowWriteForm(false); }} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, cursor: "pointer", color: COLORS.sub, fontSize: 11, fontWeight: 600, padding: "4px 8px", fontFamily: "inherit" }}>
+                                    취소
+                                  </button>
+                                </div>
+                                <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: "16px", marginBottom: 12, textAlign: "center" }}>
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 12 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.sub }}>⭐ 총점</span>
+                                    <span style={{ fontSize: 10, color: COLORS.accent, fontWeight: 700, background: COLORS.accentLight, padding: "1px 6px", borderRadius: 4 }}>필수</span>
+                                  </div>
+                                  <HalfStarRating value={totalScore} onChange={setTotalScore} size={isMobile ? 44 : 30} />
+                                  <div style={{ marginTop: 8, fontSize: 14, fontWeight: 700, color: totalScore > 0 ? COLORS.accent : COLORS.subLight }}>
+                                    {totalScore > 0 ? `${Number(totalScore).toFixed(1)} / 5` : "별을 선택해주세요"}
                                   </div>
                                 </div>
-                                {review.participants && (
-                                  <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: review.memo ? 3 : 0 }}>
-                                    👥{" "}
-                                    {review.participants_private
-                                      ? "🔒 비공개"
-                                      : review.participants}
+                                <div style={{ marginBottom: 16 }}>
+                                  <button onClick={() => setDetailExpanded((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", color: COLORS.sub, fontSize: 12, fontWeight: 600, padding: "4px 0", fontFamily: "inherit" }}>
+                                    세부 별점 <span style={{ fontSize: 10, color: COLORS.subLight, fontWeight: 400 }}>선택</span>
+                                    <span style={{ fontSize: 10 }}>{detailExpanded ? "▲" : "▼"}</span>
+                                  </button>
+                                  {detailExpanded && (
+                                    <div style={{ marginTop: 10, padding: "12px 14px", background: COLORS.surface, borderRadius: 10, border: `1px solid ${COLORS.border}` }}>
+                                      <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: 12, lineHeight: 1.5 }}>세부 별점은 통계에 반영되지 않습니다.</div>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                        {DETAIL_FIELDS.map(({ key, label }) => (
+                                          <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                            <span style={{ fontSize: 12, color: COLORS.sub, fontWeight: 600, width: 52, flexShrink: 0 }}>{label}</span>
+                                            <StarRating value={detailScores[key]} onChange={(v) => setDetailScores((prev) => ({ ...prev, [key]: v }))} size={20} />
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ height: 1, background: COLORS.border, marginBottom: 16 }} />
+                                <div style={{ display: "flex", gap: 12, marginBottom: 14, flexDirection: isMobile ? "column" : "row" }}>
+                                  <div style={{ flex: 1 }}>
+                                    <label style={sectionLabel}>📅 플레이 날짜</label>
+                                    <input type="date" value={playedAt} onChange={(e) => setPlayedAt(e.target.value)} style={inputStyle} />
                                   </div>
-                                )}
-                                {review.memo && (
-                                  <div style={{ fontSize: 11, color: COLORS.sub, lineHeight: 1.5 }}>
-                                    {review.memo}
+                                  <div style={{ flex: 1 }}>
+                                    <label style={sectionLabel}>👥 참가자</label>
+                                    <div style={{ display: "flex", gap: 6 }}>
+                                      <input value={participants} onChange={(e) => setParticipants(e.target.value)} placeholder="예: 철수, 영희" style={{ ...inputStyle, flex: 1 }} />
+                                      <button onClick={() => setParticipantsPrivate((v) => !v)} title={participantsPrivate ? "비공개 해제" : "비공개 설정"} style={{ flexShrink: 0, border: `1px solid ${participantsPrivate ? COLORS.sub : COLORS.border}`, borderRadius: 8, padding: "0 10px", background: participantsPrivate ? "#f0f0f0" : "transparent", cursor: "pointer", fontSize: 14, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 3, color: participantsPrivate ? COLORS.sub : COLORS.subLight, fontWeight: 600, transition: "all 0.15s", whiteSpace: "nowrap" }}>
+                                        🔒{participantsPrivate && <span style={{ fontSize: 10 }}>비공개</span>}
+                                      </button>
+                                    </div>
+                                    {participantsPrivate && <div style={{ fontSize: 11, color: COLORS.subLight, marginTop: 4 }}>나만 볼 수 있어요</div>}
                                   </div>
-                                )}
+                                </div>
+                                <div style={{ marginBottom: 16 }}>
+                                  <label style={sectionLabel}>📝 메모</label>
+                                  <textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="후기, 최고 점수, 하우스룰, 다음 전략… 자유롭게 기록해요" rows={isMobile ? 3 : 4} style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }} />
+                                </div>
+                                {message && <div style={{ fontSize: 13, padding: "10px 12px", borderRadius: 8, marginBottom: 12, background: "#fee2e2", color: COLORS.error }}>{message}</div>}
+                                <button onClick={handleSave} disabled={saving || totalScore === 0} style={{ width: "100%", background: COLORS.accent, color: "#fff", border: "none", borderRadius: 10, padding: "12px 0", fontSize: 14, fontWeight: 700, cursor: saving || totalScore === 0 ? "not-allowed" : "pointer", opacity: saving || totalScore === 0 ? 0.45 : 1, transition: "opacity 0.15s", fontFamily: "inherit" }}>
+                                  {saving ? "저장 중..." : totalScore === 0 ? "총점을 입력해주세요" : editingReviewId ? "수정하기" : "기록 저장하기"}
+                                </button>
                               </div>
-                            );
-                          })}
-                        </div>
-                      </>
+                            )}
+                          </>
+                        )}
+                      </div>
                     )}
-                    {/* ── 이 게임의 리뷰 ── */}
+
+                    {/* ── 게임 정보 (모바일) ── */}
+                    {isMobile && (
+                      <div style={{ marginBottom: 24, padding: "14px 16px", background: COLORS.bg, borderRadius: 12, border: `1px solid ${COLORS.border}` }}>
+                        {game.genre?.length > 0 && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
+                            {game.genre.map((g) => (
+                              <span key={g} style={{ background: "rgba(0,0,0,0.06)", color: COLORS.text, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10 }}>{g}</span>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{ display: "flex", gap: 12, fontSize: 12, color: COLORS.sub, marginBottom: 8, flexWrap: "wrap" }}>
+                          {game.min_players && <span>👥 {game.min_players}~{game.max_players}인</span>}
+                          {game.play_minutes && <span>⏱ {game.play_minutes}분</span>}
+                          {game.min_age && <span>🔞 {game.min_age}세+</span>}
+                          {game.publisher && <span>🏢 {game.publisher}</span>}
+                        </div>
+                        {bggData && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, marginBottom: 8 }}>
+                            <span style={{ background: "rgba(29,78,216,0.12)", color: "#1d4ed8", fontWeight: 700, padding: "2px 7px", borderRadius: 6 }}>BGG #{bggData.rank}</span>
+                            <span style={{ color: COLORS.accent, fontWeight: 700 }}>★ {bggData.avg_rating?.toFixed(2)}</span>
+                            {bggData.year_published && <span style={{ color: COLORS.subLight }}>{bggData.year_published}</span>}
+                          </div>
+                        )}
+                        {game.description && (
+                          <div style={{ fontSize: 12, color: COLORS.sub, lineHeight: 1.6, marginBottom: session ? 10 : 0 }}>
+                            {game.description}
+                          </div>
+                        )}
+                        {session && (
+                          <button onClick={() => setShowProposalModal(true)} style={{ background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: COLORS.sub, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit" }}>
+                            ✏️ 정보 수정 제안
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── 다른 사람 리뷰 ── */}
                     {(() => {
                       if (allReviews === null) return null;
                       const scores = allReviews.filter((r) => r.total_score > 0).map((r) => r.total_score);
@@ -1015,28 +983,21 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                       const visible = allReviews.slice(0, reviewsShowCount);
                       return (
                         <>
-                          <div style={{ height: 1, background: COLORS.border, margin: "24px 0 16px" }} />
+                          <div style={{ height: 1, background: COLORS.border, marginBottom: 16 }} />
                           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>
-                              이 게임의 리뷰
+                              다른 사람 리뷰
                             </div>
                             {avg !== null && (
                               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                                 <HalfStarDisplay value={avg} size={12} />
-                                <span style={{ fontSize: 12, color: COLORS.accent, fontWeight: 700 }}>
-                                  {avg.toFixed(1)}
-                                </span>
-                                <span style={{ fontSize: 11, color: COLORS.subLight }}>
-                                  · {allReviews.length}개
-                                </span>
+                                <span style={{ fontSize: 12, color: COLORS.accent, fontWeight: 700 }}>{avg.toFixed(1)}</span>
+                                <span style={{ fontSize: 11, color: COLORS.subLight }}>· {allReviews.length}개</span>
                               </div>
                             )}
                           </div>
-
                           {allReviewsLoading ? (
-                            <div style={{ textAlign: "center", fontSize: 12, color: COLORS.subLight, padding: "12px 0" }}>
-                              불러오는 중...
-                            </div>
+                            <div style={{ textAlign: "center", fontSize: 12, color: COLORS.subLight, padding: "12px 0" }}>불러오는 중...</div>
                           ) : allReviews.length === 0 ? (
                             <div style={{ textAlign: "center", fontSize: 12, color: COLORS.subLight, padding: "16px 0", lineHeight: 1.6 }}>
                               아직 리뷰가 없어요.<br />첫 기록을 남겨보세요!
@@ -1047,58 +1008,29 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                                 {visible.map((review) => {
                                   const isMe = review.user_id === session?.user?.id;
                                   return (
-                                    <div
-                                      key={review.id}
-                                      style={{
-                                        background: isMe ? "#fff7f5" : COLORS.bg,
-                                        border: `1px solid ${isMe ? "#ffd6c8" : COLORS.border}`,
-                                        borderRadius: 8,
-                                        padding: "10px 12px",
-                                      }}
-                                    >
+                                    <div key={review.id} style={{ background: isMe ? "#fff7f5" : COLORS.bg, border: `1px solid ${isMe ? "#ffd6c8" : COLORS.border}`, borderRadius: 8, padding: "10px 12px" }}>
                                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 4 }}>
                                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                          <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? COLORS.accent : COLORS.text }}>
-                                            {isMe ? "나" : review.nickname}
-                                          </span>
+                                          <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? COLORS.accent : COLORS.text }}>{isMe ? "나" : review.nickname}</span>
                                           {review.total_score > 0 && (
                                             <>
                                               <HalfStarDisplay value={review.total_score} size={11} />
-                                              <span style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700 }}>
-                                                {Number(review.total_score).toFixed(1)}
-                                              </span>
+                                              <span style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700 }}>{Number(review.total_score).toFixed(1)}</span>
                                             </>
                                           )}
                                         </div>
-                                        <span style={{ fontSize: 10, color: COLORS.subLight }}>
-                                          {review.played_at || review.created_at?.slice(0, 10)}
-                                        </span>
+                                        <span style={{ fontSize: 10, color: COLORS.subLight }}>{review.played_at || review.created_at?.slice(0, 10)}</span>
                                       </div>
                                       {!review.participants_private && review.participants && (
-                                        <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: review.memo ? 3 : 0 }}>
-                                          👥 {review.participants}
-                                        </div>
+                                        <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: review.memo ? 3 : 0 }}>👥 {review.participants}</div>
                                       )}
-                                      {review.memo && (
-                                        <div style={{ fontSize: 11, color: COLORS.sub, lineHeight: 1.5, wordBreak: "break-word" }}>
-                                          {review.memo}
-                                        </div>
-                                      )}
+                                      {review.memo && <div style={{ fontSize: 11, color: COLORS.sub, lineHeight: 1.5, wordBreak: "break-word" }}>{review.memo}</div>}
                                     </div>
                                   );
                                 })}
                               </div>
                               {allReviews.length > reviewsShowCount && (
-                                <button
-                                  onClick={() => setReviewsShowCount((n) => n + 10)}
-                                  style={{
-                                    width: "100%", marginTop: 8,
-                                    padding: "8px 0", fontSize: 12, fontWeight: 600,
-                                    background: COLORS.bg, border: `1px solid ${COLORS.border}`,
-                                    borderRadius: 8, color: COLORS.sub,
-                                    cursor: "pointer", fontFamily: "inherit",
-                                  }}
-                                >
+                                <button onClick={() => setReviewsShowCount((n) => n + 10)} style={{ width: "100%", marginTop: 8, padding: "8px 0", fontSize: 12, fontWeight: 600, background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.sub, cursor: "pointer", fontFamily: "inherit" }}>
                                   더 보기 (+{allReviews.length - reviewsShowCount}개)
                                 </button>
                               )}

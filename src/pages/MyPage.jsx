@@ -97,89 +97,84 @@ function formatJoinDate(isoString) {
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
-// ── 별점 분포 차트 ──
+// ── 별점 분포 차트 (wrapper 없이 content만) ──
 function RatingChart({ dist, scores }) {
   const maxCount = Math.max(...Object.values(dist), 1);
   const total = scores.length;
   const comment = getPersonalityComment(dist, total);
 
   return (
-    <section
-      style={{
-        background: COLORS.surface,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: 16,
-        padding: "24px 28px",
-        marginBottom: 32,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>별점 분포</h2>
-        <span style={{ fontSize: 12, color: COLORS.subLight }}>
-          평가한 게임 {total}개
-        </span>
-      </div>
-
+    <>
       {comment && (
-        <div
-          style={{
-            fontSize: 12,
-            color: COLORS.accent,
-            fontWeight: 700,
-            marginBottom: 20,
-            padding: "6px 12px",
-            background: "#fff1ec",
-            borderRadius: 8,
-            display: "inline-block",
-          }}
-        >
+        <div style={{ fontSize: 12, color: COLORS.accent, fontWeight: 700, marginBottom: 12, padding: "6px 12px", background: "#fff1ec", borderRadius: 8, display: "inline-block" }}>
           {comment}
         </div>
       )}
-
-      <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 120 }}>
+      <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: 10 }}>평가한 게임 {total}개</div>
+      <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 100 }}>
         {RATING_BUCKETS.map((b) => {
           const count = dist[b] || 0;
           const heightPct = count > 0 ? Math.max((count / maxCount) * 100, 8) : 0;
           const isMax = count > 0 && count === maxCount;
           return (
-            <div
-              key={b}
-              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}
-            >
-              <div
-                style={{
-                  fontSize: 10,
-                  color: isMax ? COLORS.accent : COLORS.subLight,
-                  fontWeight: isMax ? 700 : 400,
-                  minHeight: 14,
-                }}
-              >
+            <div key={b} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+              <div style={{ fontSize: 10, color: isMax ? COLORS.accent : COLORS.subLight, fontWeight: isMax ? 700 : 400, minHeight: 14 }}>
                 {count > 0 ? count : ""}
               </div>
-              <div
-                style={{
-                  width: "100%",
-                  height: `${heightPct}%`,
-                  background: isMax ? COLORS.accent : "#e5e7eb",
-                  borderRadius: "4px 4px 0 0",
-                  transition: "height 0.4s ease",
-                }}
-              />
-              <div
-                style={{
-                  fontSize: 10,
-                  color: isMax ? COLORS.accent : COLORS.subLight,
-                  fontWeight: isMax ? 700 : 400,
-                }}
-              >
-                {b}
-              </div>
+              <div style={{ width: "100%", height: `${heightPct}%`, background: isMax ? COLORS.accent : "#e5e7eb", borderRadius: "4px 4px 0 0", transition: "height 0.4s ease" }} />
+              <div style={{ fontSize: 10, color: isMax ? COLORS.accent : COLORS.subLight, fontWeight: isMax ? 700 : 400 }}>{b}</div>
             </div>
           );
         })}
       </div>
-    </section>
+    </>
+  );
+}
+
+// ── 수평 막대 차트 ──
+function CssBarChart({ title, data }) {
+  const maxVal = Math.max(...data.map(([, v]) => v), 1);
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: "20px 24px", marginBottom: 16 }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.text, marginBottom: 14 }}>{title}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {data.map(([label, count]) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 72, fontSize: 12, color: COLORS.sub, flexShrink: 0, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
+            <div style={{ flex: 1, background: COLORS.bg, borderRadius: 4, height: 18, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${(count / maxVal) * 100}%`, background: COLORS.accent, borderRadius: 4, transition: "width 0.5s ease" }} />
+            </div>
+            <div style={{ width: 20, fontSize: 11, color: COLORS.subLight, textAlign: "right", flexShrink: 0 }}>{count}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── 월별 활동 차트 ──
+function MonthlyChart({ data }) {
+  const maxVal = Math.max(...data.map((d) => d.count), 1);
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: "20px 24px", marginBottom: 16 }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.text, marginBottom: 14 }}>월별 활동</div>
+      <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 80 }}>
+        {data.map(({ month, count }) => {
+          const heightPct = count > 0 ? Math.max((count / maxVal) * 100, 8) : 0;
+          const isMax = count > 0 && count === maxVal;
+          const label = month.slice(5).replace(/^0/, "");
+          return (
+            <div key={month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+              <div style={{ fontSize: 9, color: isMax ? COLORS.accent : COLORS.subLight, fontWeight: isMax ? 700 : 400, minHeight: 12 }}>
+                {count > 0 ? count : ""}
+              </div>
+              <div style={{ width: "100%", height: `${heightPct}%`, background: isMax ? COLORS.accent : "#e5e7eb", borderRadius: "3px 3px 0 0" }} />
+              <div style={{ fontSize: 9, color: isMax ? COLORS.accent : COLORS.subLight, fontWeight: isMax ? 700 : 400 }}>{label}월</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -192,6 +187,7 @@ export default function MyPage({ session, profile }) {
   const [sortOrder, setSortOrder] = useState("latest");
   const [filterRating, setFilterRating] = useState(null);
   const [filterGenre, setFilterGenre] = useState("전체");
+  const [activeTab, setActiveTab] = useState("records");
 
   const loadReviews = async () => {
     const { data } = await supabase
@@ -288,6 +284,46 @@ export default function MyPage({ session, profile }) {
     return arr;
   }, [gameEntries, filterGenre, filterRating, sortOrder]);
 
+  // 취향분석 데이터
+  const genreStats = useMemo(() => {
+    const counts = {};
+    reviews.forEach((r) => {
+      r.games?.genre?.forEach((g) => { counts[g] = (counts[g] || 0) + 1; });
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }, [reviews]);
+
+  const playerStats = useMemo(() => {
+    const buckets = { "솔로(1인)": 0, "2인": 0, "3~4인": 0, "5인+": 0 };
+    reviews.forEach((r) => {
+      const max = r.games?.max_players;
+      if (!max) return;
+      if (max === 1) buckets["솔로(1인)"]++;
+      else if (max === 2) buckets["2인"]++;
+      else if (max <= 4) buckets["3~4인"]++;
+      else buckets["5인+"]++;
+    });
+    return Object.entries(buckets).filter(([, v]) => v > 0);
+  }, [reviews]);
+
+  const monthlyStats = useMemo(() => {
+    const now = new Date();
+    const months = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    }
+    const counts = {};
+    months.forEach((m) => { counts[m] = 0; });
+    reviews.forEach((r) => {
+      const date = r.played_at || r.created_at;
+      if (!date) return;
+      const ym = date.slice(0, 7);
+      if (Object.prototype.hasOwnProperty.call(counts, ym)) counts[ym]++;
+    });
+    return months.map((m) => ({ month: m, count: counts[m] }));
+  }, [reviews]);
+
   if (loading) {
     return (
       <div
@@ -317,178 +353,140 @@ export default function MyPage({ session, profile }) {
           가입일 {formatJoinDate(session.user.created_at)}
         </div>
 
-        {/* 통계 4종 */}
+        {/* 통계 3종 */}
         {stats ? (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
-              gap: isMobile ? 8 : 12,
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: isMobile ? 8 : 12 }}>
             <StatCard value={stats.totalRecords} label="총 기록" unit="회" />
             <StatCard value={stats.uniqueGames} label="플레이 게임" unit="종" />
-            <StatCard
-              label="평균 별점"
-              value={stats.avgScore ? stats.avgScore.toFixed(1) : "−"}
-              unit={stats.avgScore ? "점" : ""}
-              starDisplay={stats.avgScore ? <HalfStarDisplay value={stats.avgScore} size={11} /> : null}
-            />
-            <StatCard
-              value={stats.mostPlayed.name}
-              label="최다 플레이"
-              sub={`${stats.mostPlayed.count}회`}
-              truncate
-            />
+            <StatCard value={stats.mostPlayed.name} label="최다 플레이" sub={`${stats.mostPlayed.count}회`} truncate />
           </div>
         ) : (
-          <div
-            style={{
-              background: COLORS.surface,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 16,
-              padding: "28px",
-              textAlign: "center",
-              color: COLORS.subLight,
-              fontSize: 14,
-            }}
-          >
+          <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: "28px", textAlign: "center", color: COLORS.subLight, fontSize: 14 }}>
             아직 기록이 없어요. 메인에서 첫 기록을 남겨보세요!
           </div>
         )}
       </section>
 
-      {/* ── 별점 분포 차트 ── */}
-      {stats && stats.allScores.length > 0 && (
-        <RatingChart dist={stats.dist} scores={stats.allScores} />
-      )}
-
-      {/* ── 내 기록 목록 ── */}
-      <section>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-            marginBottom: 16,
-            flexWrap: "wrap",
-            gap: 8,
-          }}
-        >
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>내 기록</h2>
-            <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 3 }}>
-              {filteredEntries.length}개 게임
-            </div>
-          </div>
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="latest">최신 기록순</option>
-            <option value="oldest">오래된 기록순</option>
-            <option value="score-high">내 별점 높은순</option>
-            <option value="score-low">내 별점 낮은순</option>
-            <option value="name">가나다순</option>
-          </select>
-        </div>
-
-        {/* 별점 필터 */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-          {[1, 2, 3, 4, 5].map((n) => {
-            const active = filterRating === n;
-            return (
-              <button
-                key={n}
-                onClick={() => setFilterRating(active ? null : n)}
-                style={{
-                  background: active ? COLORS.accent : COLORS.surface,
-                  color: active ? "#fff" : COLORS.sub,
-                  border: `1px solid ${active ? COLORS.accent : COLORS.border}`,
-                  borderRadius: 20,
-                  padding: "6px 14px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                  fontFamily: "inherit",
-                }}
-              >
-                {"★".repeat(n)}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 장르 필터 */}
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            flexWrap: "wrap",
-            marginBottom: 24,
-            paddingBottom: 16,
-            borderBottom: `1px solid ${COLORS.border}`,
-          }}
-        >
-          {["전체", ...allGenres].map((g) => {
-            const active = filterGenre === g;
-            return (
-              <button
-                key={g}
-                onClick={() => setFilterGenre(g)}
-                style={{
-                  background: active ? "#1a1a1a" : COLORS.surface,
-                  color: active ? "#fff" : COLORS.sub,
-                  border: `1px solid ${active ? "#1a1a1a" : COLORS.border}`,
-                  borderRadius: 20,
-                  padding: "5px 12px",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                  fontFamily: "inherit",
-                }}
-              >
-                {g}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 격자 */}
-        {filteredEntries.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px 0", color: COLORS.sub }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🎲</div>
-            {gameEntries.length === 0
-              ? "아직 기록한 게임이 없어요. 메인에서 카드를 클릭해 첫 기록을 남겨보세요"
-              : "해당 조건의 게임이 없어요"}
-          </div>
-        ) : (
-          <div
+      {/* ── 탭 ── */}
+      <div style={{ display: "flex", borderBottom: `2px solid ${COLORS.border}`, marginBottom: 24 }}>
+        {[["records", "기록"], ["analytics", "취향분석"]].map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
             style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: isMobile ? 8 : 16,
+              background: "none", border: "none",
+              borderBottom: `2px solid ${activeTab === key ? COLORS.accent : "transparent"}`,
+              marginBottom: -2,
+              padding: "10px 18px",
+              fontSize: 14, fontWeight: 700,
+              color: activeTab === key ? COLORS.accent : COLORS.sub,
+              cursor: "pointer", fontFamily: "inherit", transition: "color 0.15s",
             }}
           >
-            {filteredEntries.map(({ game, count, latestScore }) => (
-              <GameCard
-                key={game.id}
-                game={game}
-                session={session}
-                reviewSummary={{
-                  count,
-                  latestScore: latestScore != null ? Math.round(latestScore * 10) / 10 : null,
-                }}
-                onReviewSaved={loadReviews}
-                bggData={null}
-              />
-            ))}
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── 기록 탭 ── */}
+      {activeTab === "records" && (
+        <section>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontSize: 12, color: COLORS.sub }}>{filteredEntries.length}개 게임</div>
+            <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={selectStyle}>
+              <option value="latest">최신 기록순</option>
+              <option value="oldest">오래된 기록순</option>
+              <option value="score-high">내 별점 높은순</option>
+              <option value="score-low">내 별점 낮은순</option>
+              <option value="name">가나다순</option>
+            </select>
           </div>
-        )}
-      </section>
+
+          {/* 별점 필터 */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+            {[1, 2, 3, 4, 5].map((n) => {
+              const active = filterRating === n;
+              return (
+                <button key={n} onClick={() => setFilterRating(active ? null : n)} style={{ background: active ? COLORS.accent : COLORS.surface, color: active ? "#fff" : COLORS.sub, border: `1px solid ${active ? COLORS.accent : COLORS.border}`, borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" }}>
+                  {"★".repeat(n)}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 장르 필터 */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 24, paddingBottom: 16, borderBottom: `1px solid ${COLORS.border}` }}>
+            {["전체", ...allGenres].map((g) => {
+              const active = filterGenre === g;
+              return (
+                <button key={g} onClick={() => setFilterGenre(g)} style={{ background: active ? "#1a1a1a" : COLORS.surface, color: active ? "#fff" : COLORS.sub, border: `1px solid ${active ? "#1a1a1a" : COLORS.border}`, borderRadius: 20, padding: "5px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" }}>
+                  {g}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 격자 */}
+          {filteredEntries.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "80px 0", color: COLORS.sub }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🎲</div>
+              {gameEntries.length === 0
+                ? "아직 기록한 게임이 없어요. 메인에서 카드를 클릭해 첫 기록을 남겨보세요"
+                : "해당 조건의 게임이 없어요"}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(180px, 1fr))", gap: isMobile ? 8 : 16 }}>
+              {filteredEntries.map(({ game, count, latestScore }) => (
+                <GameCard
+                  key={game.id}
+                  game={game}
+                  session={session}
+                  reviewSummary={{ count, latestScore: latestScore != null ? Math.round(latestScore * 10) / 10 : null }}
+                  onReviewSaved={loadReviews}
+                  bggData={null}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── 취향분석 탭 ── */}
+      {activeTab === "analytics" && (
+        <div>
+          {stats && stats.allScores.length > 0 ? (
+            <>
+              {/* 별점 분포 */}
+              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: "20px 24px", marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.text }}>별점 분포</div>
+                  {stats.avgScore && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <HalfStarDisplay value={stats.avgScore} size={12} />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.accent }}>평균 {stats.avgScore.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+                <RatingChart dist={stats.dist} scores={stats.allScores} />
+              </div>
+
+              {/* 장르 분포 */}
+              {genreStats.length > 0 && <CssBarChart title="장르 분포" data={genreStats} />}
+
+              {/* 선호 인원수 */}
+              {playerStats.length > 0 && <CssBarChart title="선호 인원수" data={playerStats} />}
+
+              {/* 월별 활동 */}
+              <MonthlyChart data={monthlyStats} />
+            </>
+          ) : (
+            <div style={{ textAlign: "center", padding: "80px 0", color: COLORS.subLight }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📊</div>
+              기록이 쌓이면 취향 분석이 나타나요!
+            </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }
