@@ -3,6 +3,31 @@ import { supabase } from "./supabase";
 import EditProposalModal from "./components/EditProposalModal";
 import { HalfStarDisplay } from "./components/StarDisplay";
 
+// BGG __thumb URL → __original URL 변환 (thumbnail은 핫링크 차단됨)
+// __thumb/img/xxx/fit-in/200x150/filters:webp()/pic.jpg
+// → __original/img/xxx/pic.jpg
+function thumbToOriginal(url) {
+  if (!url || !url.includes("__thumb")) return url;
+  return url
+    .replace("__thumb", "__original")
+    .replace(/\/fit-in\/\d+x\d+\//g, "/")
+    .replace(/filters:webp\(\)\//g, "")
+    .replace(/filters:strip_icc\(\)\//g, "");
+}
+
+// BGG 이미지 URL 정규화 + __thumb → __original 변환
+function safeImageUrl(url) {
+  if (!url) return null;
+  let u = url.trim();
+  if (u.startsWith("http://")) u = "https://" + u.slice(7);
+  if (u.startsWith("//")) u = "https:" + u;
+  if (u.startsWith("cf.geekdo-images.com")) u = "https://" + u;
+  if (/^pic\d+\.\w+$/i.test(u)) u = `https://cf.geekdo-images.com/${u}`;
+  if (u.startsWith("/")) u = "https://cf.geekdo-images.com" + u;
+  if (!u.startsWith("https://")) return null;
+  return thumbToOriginal(u);
+}
+
 const COLORS = {
   bg: "#fafafa",
   surface: "#ffffff",
@@ -172,6 +197,7 @@ function HalfStarRating({ value, onChange, size = 30 }) {
 }
 
 export default function GameCard({ game, session, reviewSummary, onReviewSaved, bggData, autoOpen = false, onClose }) {
+  const imageUrl = safeImageUrl(game.image_url);
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 640;
   const formPanelRef = useRef(null);
@@ -487,12 +513,12 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
             overflow: "hidden",
           }}
         >
-          {game.image_url ? (
+          {imageUrl ? (
             <img
-              src={game.image_url}
+              src={imageUrl}
               alt={game.name_ko}
               loading="lazy"
-              onError={(e) => { e.currentTarget.style.display = "none"; }}
+              onError={(e) => { console.warn("[이미지 로딩 실패]", e.currentTarget.src); e.currentTarget.style.display = "none"; }}
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
             />
           ) : (
@@ -613,12 +639,12 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                     overflow: "hidden",
                   }}
                 >
-                  {game.image_url ? (
+                  {imageUrl ? (
                     <img
-                      src={game.image_url}
+                      src={imageUrl}
                       alt={game.name_ko}
                       loading="lazy"
-                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      onError={(e) => { console.warn("[이미지 로딩 실패]", e.currentTarget.src); e.currentTarget.style.display = "none"; }}
                       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: 20 }}
                     />
                   ) : (
@@ -654,13 +680,30 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                   >
                     <div
                       style={{
-                        fontSize: isMobile ? 44 : 52,
-                        lineHeight: 1, flexShrink: 0,
+                        flexShrink: 0,
                         marginBottom: isMobile ? 0 : 12,
-                        textAlign: "center",
+                        width: isMobile ? 64 : 72,
+                        height: isMobile ? 64 : 72,
+                        borderRadius: 10,
+                        overflow: "hidden",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: isMobile ? 44 : 52,
+                        background: imageUrl ? "transparent" : "rgba(255,255,255,0.3)",
                       }}
                     >
-                      {genreStyle.emoji}
+                      {imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={game.name_ko}
+                          loading="lazy"
+                          onError={(e) => { console.warn("[이미지 로딩 실패]", e.currentTarget.src); e.currentTarget.style.display = "none"; }}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        genreStyle.emoji
+                      )}
                     </div>
                     <div style={{ minWidth: 0, ...(isMobile ? {} : { display: "flex", flexDirection: "column", flex: 1 }) }}>
                       <div

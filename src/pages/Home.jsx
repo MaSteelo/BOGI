@@ -6,6 +6,27 @@ import GameFilter from "../components/GameFilter";
 import { HalfStarDisplay } from "../components/StarDisplay";
 import GameSubmissionModal from "../components/GameSubmissionModal";
 
+function thumbToOriginal(url) {
+  if (!url || !url.includes("__thumb")) return url;
+  return url
+    .replace("__thumb", "__original")
+    .replace(/\/fit-in\/\d+x\d+\//g, "/")
+    .replace(/filters:webp\(\)\//g, "")
+    .replace(/filters:strip_icc\(\)\//g, "");
+}
+
+function safeImageUrl(url) {
+  if (!url) return null;
+  let u = url.trim();
+  if (u.startsWith("http://")) u = "https://" + u.slice(7);
+  if (u.startsWith("//")) u = "https:" + u;
+  if (u.startsWith("cf.geekdo-images.com")) u = "https://" + u;
+  if (/^pic\d+\.\w+$/i.test(u)) u = `https://cf.geekdo-images.com/${u}`;
+  if (u.startsWith("/")) u = "https://cf.geekdo-images.com" + u;
+  if (!u.startsWith("https://")) return null;
+  return thumbToOriginal(u);
+}
+
 const COLORS = {
   bg: "#fafafa",
   surface: "#ffffff",
@@ -129,6 +150,18 @@ export default function Home({ session }) {
       ]);
 
       if (gamesRes.data) {
+        // ── 이미지 진단 로그 ──
+        const total = gamesRes.data.length;
+        const withImg = gamesRes.data.filter((g) => g.image_url).length;
+        console.log(`[이미지 진단] games 로드: ${total}개 중 image_url 있음 ${withImg}개`);
+        if (withImg > 0) {
+          const sample = gamesRes.data.find((g) => g.image_url);
+          console.log(`[이미지 진단] 샘플 URL: ${sample.name_ko} → ${sample.image_url}`);
+        } else {
+          console.warn("[이미지 진단] image_url이 있는 게임이 없습니다. fetch_bgg_images.js를 실행했는지 확인하세요.");
+        }
+        // ── ──
+
         setGames(gamesRes.data);
 
         // BOGI TOP 집계 (클라이언트)
@@ -483,6 +516,7 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
 
   const badgeColor = rank <= 3 ? RANK_COLORS[rank - 1] : COLORS.accent;
   const genreStyle = getGenreStyle(game.genre);
+  const imageUrl = safeImageUrl(game.image_url);
   const cardW = isMobile ? 120 : 152;
   const imgH = isMobile ? 76 : 90;
   const emojiFz = isMobile ? 30 : 38;
@@ -516,12 +550,12 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
             overflow: "hidden",
           }}
         >
-          {game.image_url ? (
+          {imageUrl ? (
             <img
-              src={game.image_url}
+              src={imageUrl}
               alt={game.name_ko}
               loading="lazy"
-              onError={(e) => { e.currentTarget.style.display = "none"; }}
+              onError={(e) => { console.warn("[이미지 로딩 실패]", e.currentTarget.src); e.currentTarget.style.display = "none"; }}
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
             />
           ) : (
