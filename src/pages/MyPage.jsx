@@ -94,7 +94,28 @@ function useWindowWidth() {
 function formatJoinDate(isoString) {
   if (!isoString) return "";
   const d = new Date(isoString);
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 가입`;
+}
+
+function BackBtn({ onClick }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: "none", border: "none", cursor: "pointer",
+        color: hovered ? COLORS.accent : COLORS.sub,
+        fontSize: 14, fontWeight: 600, padding: "4px 0",
+        marginBottom: 20, fontFamily: "inherit",
+        display: "flex", alignItems: "center", gap: 4,
+        transition: "color 0.15s",
+      }}
+    >
+      ← 뒤로
+    </button>
+  );
 }
 
 function RatingChart({ dist, scores }) {
@@ -108,19 +129,19 @@ function RatingChart({ dist, scores }) {
           {comment}
         </div>
       )}
-      <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: 10 }}>평가한 게임 {total}개</div>
-      <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 100 }}>
+      <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: 12 }}>평가한 게임 {total}개</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {RATING_BUCKETS.map((b) => {
           const count = dist[b] || 0;
-          const heightPct = count > 0 ? Math.max((count / maxCount) * 100, 8) : 0;
+          const widthPct = count > 0 ? Math.max((count / maxCount) * 100, 6) : 0;
           const isMax = count > 0 && count === maxCount;
           return (
-            <div key={b} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-              <div style={{ fontSize: 10, color: isMax ? COLORS.accent : COLORS.subLight, fontWeight: isMax ? 700 : 400, minHeight: 14 }}>
-                {count > 0 ? count : ""}
+            <div key={b} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 28, fontSize: 11, color: isMax ? COLORS.accent : COLORS.sub, fontWeight: isMax ? 700 : 400, flexShrink: 0, textAlign: "right" }}>{b}</div>
+              <div style={{ flex: 1, background: "#f5f5f5", borderRadius: 6, height: 20, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${widthPct}%`, background: isMax ? COLORS.accent : "#ffb49a", borderRadius: 6, transition: "width 0.5s ease" }} />
               </div>
-              <div style={{ width: "100%", height: `${heightPct}%`, background: isMax ? COLORS.accent : "#e5e7eb", borderRadius: "4px 4px 0 0", transition: "height 0.4s ease" }} />
-              <div style={{ fontSize: 10, color: isMax ? COLORS.accent : COLORS.subLight, fontWeight: isMax ? 700 : 400 }}>{b}</div>
+              <div style={{ width: 20, fontSize: 11, color: isMax ? COLORS.accent : COLORS.subLight, fontWeight: isMax ? 700 : 400, flexShrink: 0, textAlign: "right" }}>{count > 0 ? count : ""}</div>
             </div>
           );
         })}
@@ -132,14 +153,17 @@ function RatingChart({ dist, scores }) {
 function CssBarChart({ title, data }) {
   const maxVal = Math.max(...data.map(([, v]) => v), 1);
   return (
-    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: "20px 24px", marginBottom: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.text, marginBottom: 14 }}>{title}</div>
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: "20px 24px", marginBottom: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ width: 3, height: 18, borderRadius: 2, background: COLORS.accent, marginRight: 8, flexShrink: 0 }} />
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{title}</div>
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {data.map(([label, count]) => (
           <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 72, fontSize: 12, color: COLORS.sub, flexShrink: 0, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
-            <div style={{ flex: 1, background: COLORS.bg, borderRadius: 4, height: 18, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${(count / maxVal) * 100}%`, background: COLORS.accent, borderRadius: 4, transition: "width 0.5s ease" }} />
+            <div style={{ flex: 1, background: "#f5f5f5", borderRadius: 6, height: 20, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${(count / maxVal) * 100}%`, background: COLORS.accent, borderRadius: 6, transition: "width 0.5s ease" }} />
             </div>
             <div style={{ width: 20, fontSize: 11, color: COLORS.subLight, textAlign: "right", flexShrink: 0 }}>{count}</div>
           </div>
@@ -152,8 +176,11 @@ function CssBarChart({ title, data }) {
 function MonthlyChart({ data }) {
   const maxVal = Math.max(...data.map((d) => d.count), 1);
   return (
-    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: "20px 24px", marginBottom: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.text, marginBottom: 14 }}>월별 활동</div>
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: "20px 24px", marginBottom: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ width: 3, height: 18, borderRadius: 2, background: COLORS.accent, marginRight: 8, flexShrink: 0 }} />
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>월별 활동</div>
+      </div>
       <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 80 }}>
         {data.map(({ month, count }) => {
           const heightPct = count > 0 ? Math.max((count / maxVal) * 100, 8) : 0;
@@ -166,6 +193,37 @@ function MonthlyChart({ data }) {
               </div>
               <div style={{ width: "100%", height: `${heightPct}%`, background: isMax ? COLORS.accent : "#e5e7eb", borderRadius: "3px 3px 0 0" }} />
               <div style={{ fontSize: 9, color: isMax ? COLORS.accent : COLORS.subLight, fontWeight: isMax ? 700 : 400 }}>{label}월</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function GenreChips({ genreStats }) {
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: "20px 24px", marginBottom: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ width: 3, height: 18, borderRadius: 2, background: COLORS.accent, marginRight: 8, flexShrink: 0 }} />
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>장르 분포</div>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {genreStats.map(([genre, count]) => {
+          const gs = GENRE_STYLE[genre] || FALLBACK;
+          return (
+            <div
+              key={genre}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                background: `linear-gradient(135deg, ${gs.grad[0]}, ${gs.grad[1]})`,
+                borderRadius: 20, padding: "5px 12px",
+                fontSize: 12, fontWeight: 700, color: COLORS.text,
+              }}
+            >
+              <span style={{ fontSize: 14 }}>{gs.emoji}</span>
+              <span>{genre}</span>
+              <span style={{ fontSize: 11, color: COLORS.sub, fontWeight: 500 }}>{count}</span>
             </div>
           );
         })}
@@ -188,11 +246,11 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
   const [filterRating, setFilterRating] = useState(null);
   const [filterGenre, setFilterGenre] = useState("전체");
   const [activeTab, setActiveTab] = useState("records");
+  const [hoveredTab, setHoveredTab] = useState(null);
 
   const [targetProfile, setTargetProfile] = useState(null);
   const [notFound, setNotFound] = useState(false);
 
-  // Only used for onReviewSaved in own-page mode (silent refresh)
   const reloadOwnReviews = async () => {
     if (!session?.user.id) return;
     const { data } = await supabase
@@ -337,7 +395,7 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
   if (!isOwnPage && notFound) {
     return (
       <main style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "20px 12px" : "40px 24px" }}>
-        <button onClick={() => navigate(-1)} style={backBtnStyle}>← 뒤로</button>
+        <BackBtn onClick={() => navigate(-1)} />
         <div style={{ textAlign: "center", padding: "80px 0", color: COLORS.subLight }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>👤</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.sub }}>존재하지 않는 유저입니다</div>
@@ -348,24 +406,51 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
 
   return (
     <main style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "20px 12px" : "40px 24px" }}>
-      {/* ── 뒤로가기 (타인 프로필에서만) ── */}
-      {!isOwnPage && (
-        <button onClick={() => navigate(-1)} style={backBtnStyle}>← 뒤로</button>
-      )}
+      {!isOwnPage && <BackBtn onClick={() => navigate(-1)} />}
 
       {/* ── 프로필 헤더 ── */}
       <section style={{ marginBottom: 32 }}>
-        <div style={{ marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ fontSize: isMobile ? 24 : 32, fontWeight: 900, letterSpacing: -1, color: COLORS.text }}>
-            {displayNickname}
+        <div style={{
+          background: COLORS.surface,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 16,
+          overflow: "hidden",
+          marginBottom: 16,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+        }}>
+          {/* 그라데이션 배너 */}
+          <div style={{ height: 120, background: "linear-gradient(135deg, #fff1ec 0%, #fafafa 100%)" }} />
+          {/* 프로필 콘텐츠 */}
+          <div style={{ padding: "0 20px 24px", marginTop: -32 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              {/* 아바타 */}
+              <div style={{
+                width: 64, height: 64, borderRadius: "50%",
+                background: COLORS.accent,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#fff", fontSize: 24, fontWeight: 700,
+                flexShrink: 0,
+                border: "3px solid #fff",
+                boxShadow: "0 2px 8px rgba(255,107,53,0.3)",
+              }}>
+                {(displayNickname || "?").charAt(0)}
+              </div>
+              {/* 닉네임 + 가입일 */}
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.text, lineHeight: 1.2 }}>
+                  {displayNickname}
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.subLight, marginTop: 4 }}>
+                  🗓 {formatJoinDate(displayJoinDate)}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div style={{ fontSize: 12, color: COLORS.subLight, marginBottom: 24 }}>
-          가입일 {formatJoinDate(displayJoinDate)}
-        </div>
 
+        {/* 통계 카드 */}
         {stats ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: isMobile ? 8 : 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
             <StatCard value={stats.totalRecords} label="총 기록" unit="회" icon="📝" isMobile={isMobile} />
             <StatCard value={stats.uniqueGames} label="플레이 게임" unit="종" icon="🎮" isMobile={isMobile} />
             <StatCard value={stats.mostPlayed.name} label="최다 플레이" sub={`${stats.mostPlayed.count}회`} truncate icon="🏆" isMobile={isMobile} />
@@ -378,24 +463,31 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
       </section>
 
       {/* ── 탭 ── */}
-      <div style={{ display: "flex", borderBottom: `2px solid ${COLORS.border}`, marginBottom: 24 }}>
-        {[["records", "기록"], ["analytics", "취향분석"]].map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            style={{
-              background: "none", border: "none",
-              borderBottom: `2px solid ${activeTab === key ? COLORS.accent : "transparent"}`,
-              marginBottom: -2,
-              padding: "10px 18px",
-              fontSize: 14, fontWeight: 700,
-              color: activeTab === key ? COLORS.accent : COLORS.sub,
-              cursor: "pointer", fontFamily: "inherit", transition: "color 0.15s",
-            }}
-          >
-            {label}
-          </button>
-        ))}
+      <div style={{ display: "flex", marginBottom: 24 }}>
+        <div style={{ display: "inline-flex", background: "#f5f5f5", borderRadius: 24, padding: 4, gap: 2 }}>
+          {[["records", "기록"], ["analytics", "취향분석"]].map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              onMouseEnter={() => setHoveredTab(key)}
+              onMouseLeave={() => setHoveredTab(null)}
+              style={{
+                background: activeTab === key ? COLORS.accent : hoveredTab === key ? "#e8e8e8" : "transparent",
+                color: activeTab === key ? "#fff" : COLORS.subLight,
+                border: "none",
+                borderRadius: 20,
+                padding: "8px 20px",
+                fontSize: 14,
+                fontWeight: activeTab === key ? 700 : 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "all 0.2s",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── 기록 탭 ── */}
@@ -417,7 +509,18 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
             {[1, 2, 3, 4, 5].map((n) => {
               const active = filterRating === n;
               return (
-                <button key={n} onClick={() => setFilterRating(active ? null : n)} style={{ background: active ? COLORS.accent : COLORS.surface, color: active ? "#fff" : COLORS.sub, border: `1px solid ${active ? COLORS.accent : COLORS.border}`, borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" }}>
+                <button
+                  key={n}
+                  onClick={() => setFilterRating(active ? null : n)}
+                  style={{
+                    background: active ? COLORS.accent : COLORS.surface,
+                    color: active ? "#fff" : COLORS.sub,
+                    border: `1px solid ${active ? COLORS.accent : COLORS.border}`,
+                    borderRadius: 20, padding: "6px 14px",
+                    fontSize: 12, fontWeight: 600,
+                    cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit",
+                  }}
+                >
                   {"★".repeat(n)}
                 </button>
               );
@@ -429,21 +532,42 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
             {["전체", ...allGenres].map((g) => {
               const active = filterGenre === g;
               return (
-                <button key={g} onClick={() => setFilterGenre(g)} style={{ background: active ? "#1a1a1a" : COLORS.surface, color: active ? "#fff" : COLORS.sub, border: `1px solid ${active ? "#1a1a1a" : COLORS.border}`, borderRadius: 20, padding: "5px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" }}>
+                <button
+                  key={g}
+                  onClick={() => setFilterGenre(g)}
+                  style={{
+                    background: active ? COLORS.accent : COLORS.surface,
+                    color: active ? "#fff" : COLORS.sub,
+                    border: `1px solid ${active ? COLORS.accent : COLORS.border}`,
+                    borderRadius: 20, padding: "5px 12px",
+                    fontSize: 11, fontWeight: 600,
+                    cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit",
+                  }}
+                >
                   {g}
                 </button>
               );
             })}
           </div>
 
-          {/* 격자 */}
+          {/* 게임 격자 */}
           {filteredEntries.length === 0 ? (
             <div style={{ textAlign: "center", padding: "80px 0", color: COLORS.sub }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🎲</div>
-              {gameEntries.length === 0 ? "아직 기록한 게임이 없어요." : "해당 조건의 게임이 없어요"}
+              {gameEntries.length === 0 ? (
+                <>
+                  <div style={{ fontSize: 56, marginBottom: 12 }}>🎲</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 6 }}>아직 기록한 게임이 없어요</div>
+                  <div style={{ fontSize: 13, color: COLORS.subLight }}>홈에서 게임을 찾아 기록해보세요</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>😅</div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>해당 조건의 게임이 없어요</div>
+                </>
+              )}
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(180px, 1fr))", gap: isMobile ? 8 : 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
               {filteredEntries.map(({ game, count, latestScore }) => (
                 <GameCard
                   key={game.id}
@@ -464,11 +588,12 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
         <div>
           {stats && stats.allScores.length > 0 ? (
             <>
-              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: "20px 24px", marginBottom: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.text }}>별점 분포</div>
+              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: "20px 24px", marginBottom: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
+                <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
+                  <div style={{ width: 3, height: 18, borderRadius: 2, background: COLORS.accent, marginRight: 8, flexShrink: 0 }} />
+                  <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>별점 분포</div>
                   {stats.avgScore && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
                       <HalfStarDisplay value={stats.avgScore} size={12} />
                       <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.accent }}>평균 {stats.avgScore.toFixed(2)}</span>
                     </div>
@@ -476,7 +601,7 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
                 </div>
                 <RatingChart dist={stats.dist} scores={stats.allScores} />
               </div>
-              {genreStats.length > 0 && <CssBarChart title="장르 분포" data={genreStats} />}
+              {genreStats.length > 0 && <GenreChips genreStats={genreStats} />}
               {playerStats.length > 0 && <CssBarChart title="선호 인원수" data={playerStats} />}
               <MonthlyChart data={monthlyStats} />
             </>
@@ -494,37 +619,40 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
 
 function StatCard({ value, label, unit = "", sub, truncate, icon, isMobile }) {
   return (
-    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: isMobile ? "12px 8px" : "16px 12px", textAlign: "center" }}>
-      {icon && <div style={{ fontSize: isMobile ? 16 : 20, marginBottom: isMobile ? 3 : 4, lineHeight: 1 }}>{icon}</div>}
-      <div style={{ fontSize: truncate ? (isMobile ? 12 : 15) : (isMobile ? 20 : 24), fontWeight: 900, color: COLORS.text, lineHeight: 1.1, overflow: truncate ? "hidden" : "visible", textOverflow: truncate ? "ellipsis" : "clip", whiteSpace: truncate ? "nowrap" : "normal", marginBottom: 2 }}>
-        {value}
-        {unit && !truncate && <span style={{ fontSize: isMobile ? 11 : 13, fontWeight: 600, color: COLORS.sub, marginLeft: 2 }}>{unit}</span>}
+    <div style={{
+      background: COLORS.surface,
+      border: `1px solid ${COLORS.border}`,
+      borderRadius: 14,
+      boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+      overflow: "hidden",
+    }}>
+      <div style={{ height: 3, background: COLORS.accent }} />
+      <div style={{ padding: isMobile ? "12px 8px" : "16px 12px", textAlign: "center" }}>
+        {icon && <div style={{ fontSize: isMobile ? 16 : 20, marginBottom: isMobile ? 3 : 4, lineHeight: 1 }}>{icon}</div>}
+        <div style={{
+          fontSize: truncate ? (isMobile ? 12 : 15) : (isMobile ? 20 : 24),
+          fontWeight: 800,
+          color: COLORS.accent,
+          lineHeight: 1.1,
+          overflow: truncate ? "hidden" : "visible",
+          textOverflow: truncate ? "ellipsis" : "clip",
+          whiteSpace: truncate ? "nowrap" : "normal",
+          marginBottom: 2,
+        }}>
+          {value}
+          {unit && !truncate && <span style={{ fontSize: isMobile ? 11 : 13, fontWeight: 600, color: COLORS.sub, marginLeft: 2 }}>{unit}</span>}
+        </div>
+        {sub && <div style={{ fontSize: isMobile ? 10 : 12, color: COLORS.sub, marginBottom: 2 }}>{sub}</div>}
+        <div style={{ fontSize: isMobile ? 10 : 11, color: COLORS.sub, marginTop: 3, fontWeight: 600 }}>{label}</div>
       </div>
-      {sub && <div style={{ fontSize: isMobile ? 10 : 12, color: COLORS.sub, marginBottom: 2 }}>{sub}</div>}
-      <div style={{ fontSize: isMobile ? 9 : 11, color: COLORS.subLight, marginTop: 3 }}>{label}</div>
     </div>
   );
 }
 
-const backBtnStyle = {
-  background: "none",
-  border: "none",
-  cursor: "pointer",
-  color: COLORS.sub,
-  fontSize: 14,
-  fontWeight: 600,
-  padding: "4px 0",
-  marginBottom: 20,
-  fontFamily: "inherit",
-  display: "flex",
-  alignItems: "center",
-  gap: 4,
-};
-
 const selectStyle = {
   background: COLORS.surface,
   border: `1px solid ${COLORS.border}`,
-  borderRadius: 8,
+  borderRadius: 10,
   padding: "8px 12px",
   color: COLORS.text,
   fontSize: 13,
