@@ -382,6 +382,7 @@ export default function Home({ session }) {
           <div style={{ flex: 1, position: "relative" }}>
             <span style={iconStyle}>🔍</span>
             <input
+              id="search-input"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="게임 이름으로 검색 (한글/영문)"

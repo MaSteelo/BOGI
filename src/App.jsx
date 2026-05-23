@@ -17,16 +17,20 @@ const COLORS = {
   accent: "#ff6b35",
 };
 
-const TAB_H = 64;
+const TAB_H = 68;
 
 function Header({ profile, session }) {
   const navigate = useNavigate();
+  const [logoutHovered, setLogoutHovered] = useState(false);
+  const [loginHovered, setLoginHovered] = useState(false);
+
   return (
     <header
       style={{
         background: COLORS.surface,
         borderBottom: `1px solid ${COLORS.border}`,
-        padding: "20px 24px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+        padding: "14px 24px",
         position: "sticky",
         top: 0,
         zIndex: 10,
@@ -38,15 +42,24 @@ function Header({ profile, session }) {
           <div
             onClick={() => navigate("/")}
             style={{
-              fontSize: 26,
-              fontWeight: 800,
-              color: COLORS.accent,
-              letterSpacing: 8,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
               userSelect: "none",
               cursor: "pointer",
             }}
           >
-            BOGI
+            <span style={{ fontSize: 22, lineHeight: 1 }}>🎲</span>
+            <span
+              style={{
+                fontSize: 28,
+                fontWeight: 900,
+                color: COLORS.accent,
+                letterSpacing: 6,
+              }}
+            >
+              BOGI
+            </span>
           </div>
           <div
             style={{
@@ -58,16 +71,28 @@ function Header({ profile, session }) {
             }}
           >
             {profile && (
-              <span style={{ fontSize: 13, color: COLORS.sub, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>
-                👋 {profile.nickname}
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: COLORS.text,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  maxWidth: 100,
+                }}
+              >
+                {profile.nickname}
               </span>
             )}
             {session && <NotificationBell session={session} />}
             {session ? (
               <button
                 onClick={() => supabase.auth.signOut()}
+                onMouseEnter={() => setLogoutHovered(true)}
+                onMouseLeave={() => setLogoutHovered(false)}
                 style={{
-                  background: "transparent",
+                  background: logoutHovered ? "#f5f5f5" : "transparent",
                   color: COLORS.sub,
                   border: `1px solid ${COLORS.border}`,
                   borderRadius: 8,
@@ -77,6 +102,7 @@ function Header({ profile, session }) {
                   cursor: "pointer",
                   fontFamily: "inherit",
                   flexShrink: 0,
+                  transition: "background 0.15s",
                 }}
               >
                 로그아웃
@@ -84,8 +110,10 @@ function Header({ profile, session }) {
             ) : (
               <button
                 onClick={() => navigate("/")}
+                onMouseEnter={() => setLoginHovered(true)}
+                onMouseLeave={() => setLoginHovered(false)}
                 style={{
-                  background: COLORS.accent,
+                  background: loginHovered ? "#e55a2b" : COLORS.accent,
                   color: "#fff",
                   border: "none",
                   borderRadius: 8,
@@ -95,6 +123,7 @@ function Header({ profile, session }) {
                   cursor: "pointer",
                   fontFamily: "inherit",
                   flexShrink: 0,
+                  transition: "background 0.15s",
                 }}
               >
                 로그인
@@ -127,7 +156,16 @@ function TabBtn({ icon, label, active, onClick }) {
       }}
     >
       <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
-      <span style={{ fontSize: 10, fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: 600 }}>{label}</span>
+      <div
+        style={{
+          width: 4,
+          height: 4,
+          borderRadius: "50%",
+          background: active ? COLORS.accent : "transparent",
+          marginTop: 2,
+        }}
+      />
     </button>
   );
 }
@@ -135,6 +173,13 @@ function TabBtn({ icon, label, active, onClick }) {
 function BottomTabBar({ isAdmin }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+
+  const handleSearchTab = () => {
+    navigate("/");
+    setTimeout(() => {
+      document.getElementById("search-input")?.focus();
+    }, 100);
+  };
 
   return (
     <nav
@@ -149,7 +194,7 @@ function BottomTabBar({ isAdmin }) {
         display: "flex",
         alignItems: "center",
         zIndex: 100,
-        boxShadow: "0 -4px 16px rgba(0,0,0,0.04)",
+        boxShadow: "0 -2px 12px rgba(0,0,0,0.06)",
       }}
     >
       <TabBtn
@@ -162,7 +207,7 @@ function BottomTabBar({ isAdmin }) {
         icon="🔍"
         label="검색"
         active={false}
-        onClick={() => navigate("/")}
+        onClick={handleSearchTab}
       />
 
       {/* 중앙 기록 버튼 */}
@@ -184,8 +229,8 @@ function BottomTabBar({ isAdmin }) {
       >
         <div
           style={{
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             borderRadius: "50%",
             background: COLORS.accent,
             display: "flex",
@@ -194,13 +239,13 @@ function BottomTabBar({ isAdmin }) {
             fontSize: 24,
             color: "#fff",
             fontWeight: 300,
-            boxShadow: "0 4px 16px rgba(255,107,53,0.4)",
+            boxShadow: "0 6px 20px rgba(255,107,53,0.5)",
             lineHeight: 1,
           }}
         >
           +
         </div>
-        <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.accent }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.accent }}>
           기록
         </span>
       </button>
