@@ -11,7 +11,9 @@
       "Bash(git push *)",
       "Bash(git *)",
       "Bash(node *)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(grep -E \"\\(package\\\\.json|\\\\.jsx|\\\\.js$\\)\")",
+      "Bash(npx vite *)"
     ]
   }
 }

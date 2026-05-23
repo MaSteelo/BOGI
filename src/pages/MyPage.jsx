@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../supabase";
 import GameCard from "../GameCard";
 import { HalfStarDisplay } from "../components/StarDisplay";
@@ -75,7 +75,6 @@ function getPersonalityComment(dist, total) {
     (dist[0.5] || 0) + (dist[1.0] || 0) + (dist[1.5] || 0) +
     (dist[2.0] || 0) + (dist[2.5] || 0) + (dist[3.0] || 0);
   const maxCount = Math.max(...Object.values(dist));
-
   if (highCount / total >= 0.6) return "어떤 게임이든 즐거움을 찾아내는 열혈 보드게이머";
   if (lowCount / total >= 0.6) return "높은 기준으로 게임을 걸러내는 냉철한 감별사";
   if (maxCount / total <= 0.25) return "장르도 메카니즘도 가리지 않는 진정한 올라운더";
@@ -93,16 +92,15 @@ function useWindowWidth() {
 }
 
 function formatJoinDate(isoString) {
+  if (!isoString) return "";
   const d = new Date(isoString);
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
-// ── 별점 분포 차트 (wrapper 없이 content만) ──
 function RatingChart({ dist, scores }) {
   const maxCount = Math.max(...Object.values(dist), 1);
   const total = scores.length;
   const comment = getPersonalityComment(dist, total);
-
   return (
     <>
       {comment && (
@@ -131,7 +129,6 @@ function RatingChart({ dist, scores }) {
   );
 }
 
-// ── 수평 막대 차트 ──
 function CssBarChart({ title, data }) {
   const maxVal = Math.max(...data.map(([, v]) => v), 1);
   return (
@@ -152,7 +149,6 @@ function CssBarChart({ title, data }) {
   );
 }
 
-// ── 월별 활동 차트 ──
 function MonthlyChart({ data }) {
   const maxVal = Math.max(...data.map((d) => d.count), 1);
   return (
@@ -178,10 +174,14 @@ function MonthlyChart({ data }) {
   );
 }
 
-export default function MyPage({ session, profile }) {
+const REVIEWS_QUERY = "*, games(id, name_ko, name_en, genre, min_players, max_players, play_minutes, bgg_rank, publisher, description, min_age, image_url)";
+
+export default function MyPage({ session, profile, isOwnPage = true }) {
   const navigate = useNavigate();
+  const { userId: paramUserId } = useParams();
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 640;
+
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState("latest");
@@ -189,23 +189,56 @@ export default function MyPage({ session, profile }) {
   const [filterGenre, setFilterGenre] = useState("전체");
   const [activeTab, setActiveTab] = useState("records");
 
-  const loadReviews = async () => {
+  const [targetProfile, setTargetProfile] = useState(null);
+  const [notFound, setNotFound] = useState(false);
+
+  // Only used for onReviewSaved in own-page mode (silent refresh)
+  const reloadOwnReviews = async () => {
+    if (!session?.user.id) return;
     const { data } = await supabase
       .from("reviews")
-      .select(
-        "*, games(id, name_ko, name_en, genre, min_players, max_players, play_minutes, bgg_rank, publisher, description, min_age, image_url)"
-      )
+      .select(REVIEWS_QUERY)
       .eq("user_id", session.user.id)
       .order("created_at", { ascending: false });
     setReviews(data || []);
-    setLoading(false);
   };
 
   useEffect(() => {
-    loadReviews();
-  }, []);
+    setNotFound(false);
+    setTargetProfile(null);
+    setReviews([]);
+    setLoading(true);
 
-  // 게임별 집계 맵
+    if (isOwnPage) {
+      const uid = session?.user.id;
+      if (!uid) { setLoading(false); return; }
+      supabase
+        .from("reviews")
+        .select(REVIEWS_QUERY)
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .then(({ data }) => { setReviews(data || []); setLoading(false); });
+    } else {
+      if (!paramUserId) { setNotFound(true); setLoading(false); return; }
+      (async () => {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", paramUserId)
+          .single();
+        if (!prof) { setNotFound(true); setLoading(false); return; }
+        setTargetProfile(prof);
+        const { data } = await supabase
+          .from("reviews")
+          .select(REVIEWS_QUERY)
+          .eq("user_id", paramUserId)
+          .order("created_at", { ascending: false });
+        setReviews(data || []);
+        setLoading(false);
+      })();
+    }
+  }, [isOwnPage, paramUserId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const gameMap = useMemo(() => {
     const map = {};
     reviews.forEach((r) => {
@@ -216,33 +249,16 @@ export default function MyPage({ session, profile }) {
     return map;
   }, [reviews]);
 
-  // 통계
   const stats = useMemo(() => {
     const entries = Object.values(gameMap);
     if (entries.length === 0) return null;
-
     const allScores = reviews.map(getNormalizedScore).filter(Boolean);
-    const avgScore = allScores.length
-      ? allScores.reduce((a, b) => a + b, 0) / allScores.length
-      : null;
-
-    const mostPlayed = entries.reduce((best, e) =>
-      e.reviews.length > best.reviews.length ? e : best
-    );
-
+    const avgScore = allScores.length ? allScores.reduce((a, b) => a + b, 0) / allScores.length : null;
+    const mostPlayed = entries.reduce((best, e) => e.reviews.length > best.reviews.length ? e : best);
     const dist = buildDist(allScores);
-
-    return {
-      totalRecords: reviews.length,
-      uniqueGames: entries.length,
-      avgScore,
-      mostPlayed: { name: mostPlayed.game.name_ko, count: mostPlayed.reviews.length },
-      dist,
-      allScores,
-    };
+    return { totalRecords: reviews.length, uniqueGames: entries.length, avgScore, mostPlayed: { name: mostPlayed.game.name_ko, count: mostPlayed.reviews.length }, dist, allScores };
   }, [gameMap, reviews]);
 
-  // 게임 엔트리 목록 (유니크 게임)
   const gameEntries = useMemo(() => {
     return Object.values(gameMap).map(({ game, reviews: gr }) => {
       const latestReview = gr[0];
@@ -260,36 +276,19 @@ export default function MyPage({ session, profile }) {
 
   const filteredEntries = useMemo(() => {
     let arr = [...gameEntries];
-
-    if (filterGenre !== "전체") {
-      arr = arr.filter((e) => e.game.genre?.includes(filterGenre));
-    }
-    if (filterRating !== null) {
-      arr = arr.filter(
-        (e) => e.latestScore !== null && Math.round(e.latestScore) === filterRating
-      );
-    }
-
-    if (sortOrder === "latest")
-      arr.sort((a, b) => new Date(b.latestPlayedAt) - new Date(a.latestPlayedAt));
-    if (sortOrder === "oldest")
-      arr.sort((a, b) => new Date(a.latestPlayedAt) - new Date(b.latestPlayedAt));
-    if (sortOrder === "score-high")
-      arr.sort((a, b) => (b.latestScore ?? 0) - (a.latestScore ?? 0));
-    if (sortOrder === "score-low")
-      arr.sort((a, b) => (a.latestScore ?? 0) - (b.latestScore ?? 0));
-    if (sortOrder === "name")
-      arr.sort((a, b) => a.game.name_ko.localeCompare(b.game.name_ko, "ko"));
-
+    if (filterGenre !== "전체") arr = arr.filter((e) => e.game.genre?.includes(filterGenre));
+    if (filterRating !== null) arr = arr.filter((e) => e.latestScore !== null && Math.round(e.latestScore) === filterRating);
+    if (sortOrder === "latest") arr.sort((a, b) => new Date(b.latestPlayedAt) - new Date(a.latestPlayedAt));
+    if (sortOrder === "oldest") arr.sort((a, b) => new Date(a.latestPlayedAt) - new Date(b.latestPlayedAt));
+    if (sortOrder === "score-high") arr.sort((a, b) => (b.latestScore ?? 0) - (a.latestScore ?? 0));
+    if (sortOrder === "score-low") arr.sort((a, b) => (a.latestScore ?? 0) - (b.latestScore ?? 0));
+    if (sortOrder === "name") arr.sort((a, b) => a.game.name_ko.localeCompare(b.game.name_ko, "ko"));
     return arr;
   }, [gameEntries, filterGenre, filterRating, sortOrder]);
 
-  // 취향분석 데이터
   const genreStats = useMemo(() => {
     const counts = {};
-    reviews.forEach((r) => {
-      r.games?.genre?.forEach((g) => { counts[g] = (counts[g] || 0) + 1; });
-    });
+    reviews.forEach((r) => { r.games?.genre?.forEach((g) => { counts[g] = (counts[g] || 0) + 1; }); });
     return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
   }, [reviews]);
 
@@ -324,36 +323,47 @@ export default function MyPage({ session, profile }) {
     return months.map((m) => ({ month: m, count: counts[m] }));
   }, [reviews]);
 
+  const displayNickname = isOwnPage ? (profile?.nickname ?? "") : (targetProfile?.nickname ?? "");
+  const displayJoinDate = isOwnPage ? session?.user.created_at : targetProfile?.created_at;
+
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: "60vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: COLORS.subLight,
-        }}
-      >
+      <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.subLight }}>
         불러오는 중...
       </div>
     );
   }
 
+  if (!isOwnPage && notFound) {
+    return (
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "20px 12px" : "40px 24px" }}>
+        <button onClick={() => navigate(-1)} style={backBtnStyle}>← 뒤로</button>
+        <div style={{ textAlign: "center", padding: "80px 0", color: COLORS.subLight }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>👤</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.sub }}>존재하지 않는 유저입니다</div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "20px 12px" : "40px 24px" }}>
+      {/* ── 뒤로가기 (타인 프로필에서만) ── */}
+      {!isOwnPage && (
+        <button onClick={() => navigate(-1)} style={backBtnStyle}>← 뒤로</button>
+      )}
+
       {/* ── 프로필 헤더 ── */}
       <section style={{ marginBottom: 32 }}>
         <div style={{ marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ fontSize: isMobile ? 24 : 32, fontWeight: 900, letterSpacing: -1, color: COLORS.text }}>
-            {profile?.nickname ?? ""}
+            {displayNickname}
           </div>
         </div>
         <div style={{ fontSize: 12, color: COLORS.subLight, marginBottom: 24 }}>
-          가입일 {formatJoinDate(session.user.created_at)}
+          가입일 {formatJoinDate(displayJoinDate)}
         </div>
 
-        {/* 통계 3종 */}
         {stats ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: isMobile ? 8 : 12 }}>
             <StatCard value={stats.totalRecords} label="총 기록" unit="회" icon="📝" isMobile={isMobile} />
@@ -362,7 +372,7 @@ export default function MyPage({ session, profile }) {
           </div>
         ) : (
           <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: "28px", textAlign: "center", color: COLORS.subLight, fontSize: 14 }}>
-            아직 기록이 없어요. 메인에서 첫 기록을 남겨보세요!
+            {isOwnPage ? "아직 기록이 없어요. 메인에서 첫 기록을 남겨보세요!" : "아직 기록한 게임이 없어요."}
           </div>
         )}
       </section>
@@ -396,8 +406,8 @@ export default function MyPage({ session, profile }) {
             <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={selectStyle}>
               <option value="latest">최신 기록순</option>
               <option value="oldest">오래된 기록순</option>
-              <option value="score-high">내 별점 높은순</option>
-              <option value="score-low">내 별점 낮은순</option>
+              <option value="score-high">별점 높은순</option>
+              <option value="score-low">별점 낮은순</option>
               <option value="name">가나다순</option>
             </select>
           </div>
@@ -430,9 +440,7 @@ export default function MyPage({ session, profile }) {
           {filteredEntries.length === 0 ? (
             <div style={{ textAlign: "center", padding: "80px 0", color: COLORS.sub }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🎲</div>
-              {gameEntries.length === 0
-                ? "아직 기록한 게임이 없어요. 메인에서 카드를 클릭해 첫 기록을 남겨보세요"
-                : "해당 조건의 게임이 없어요"}
+              {gameEntries.length === 0 ? "아직 기록한 게임이 없어요." : "해당 조건의 게임이 없어요"}
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(180px, 1fr))", gap: isMobile ? 8 : 16 }}>
@@ -442,7 +450,7 @@ export default function MyPage({ session, profile }) {
                   game={game}
                   session={session}
                   reviewSummary={{ count, latestScore: latestScore != null ? Math.round(latestScore * 10) / 10 : null }}
-                  onReviewSaved={loadReviews}
+                  onReviewSaved={isOwnPage ? reloadOwnReviews : undefined}
                   bggData={null}
                 />
               ))}
@@ -456,7 +464,6 @@ export default function MyPage({ session, profile }) {
         <div>
           {stats && stats.allScores.length > 0 ? (
             <>
-              {/* 별점 분포 */}
               <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: "20px 24px", marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.text }}>별점 분포</div>
@@ -469,14 +476,8 @@ export default function MyPage({ session, profile }) {
                 </div>
                 <RatingChart dist={stats.dist} scores={stats.allScores} />
               </div>
-
-              {/* 장르 분포 */}
               {genreStats.length > 0 && <CssBarChart title="장르 분포" data={genreStats} />}
-
-              {/* 선호 인원수 */}
               {playerStats.length > 0 && <CssBarChart title="선호 인원수" data={playerStats} />}
-
-              {/* 월별 활동 */}
               <MonthlyChart data={monthlyStats} />
             </>
           ) : (
@@ -491,49 +492,34 @@ export default function MyPage({ session, profile }) {
   );
 }
 
-// ── 통계 카드 ──
 function StatCard({ value, label, unit = "", sub, truncate, icon, isMobile }) {
   return (
-    <div
-      style={{
-        background: COLORS.surface,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: 14,
-        padding: isMobile ? "12px 8px" : "16px 12px",
-        textAlign: "center",
-      }}
-    >
-      {icon && (
-        <div style={{ fontSize: isMobile ? 16 : 20, marginBottom: isMobile ? 3 : 4, lineHeight: 1 }}>
-          {icon}
-        </div>
-      )}
-      <div
-        style={{
-          fontSize: truncate ? (isMobile ? 12 : 15) : (isMobile ? 20 : 24),
-          fontWeight: 900,
-          color: COLORS.text,
-          lineHeight: 1.1,
-          overflow: truncate ? "hidden" : "visible",
-          textOverflow: truncate ? "ellipsis" : "clip",
-          whiteSpace: truncate ? "nowrap" : "normal",
-          marginBottom: 2,
-        }}
-      >
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: isMobile ? "12px 8px" : "16px 12px", textAlign: "center" }}>
+      {icon && <div style={{ fontSize: isMobile ? 16 : 20, marginBottom: isMobile ? 3 : 4, lineHeight: 1 }}>{icon}</div>}
+      <div style={{ fontSize: truncate ? (isMobile ? 12 : 15) : (isMobile ? 20 : 24), fontWeight: 900, color: COLORS.text, lineHeight: 1.1, overflow: truncate ? "hidden" : "visible", textOverflow: truncate ? "ellipsis" : "clip", whiteSpace: truncate ? "nowrap" : "normal", marginBottom: 2 }}>
         {value}
-        {unit && !truncate && (
-          <span style={{ fontSize: isMobile ? 11 : 13, fontWeight: 600, color: COLORS.sub, marginLeft: 2 }}>
-            {unit}
-          </span>
-        )}
+        {unit && !truncate && <span style={{ fontSize: isMobile ? 11 : 13, fontWeight: 600, color: COLORS.sub, marginLeft: 2 }}>{unit}</span>}
       </div>
-      {sub && (
-        <div style={{ fontSize: isMobile ? 10 : 12, color: COLORS.sub, marginBottom: 2 }}>{sub}</div>
-      )}
+      {sub && <div style={{ fontSize: isMobile ? 10 : 12, color: COLORS.sub, marginBottom: 2 }}>{sub}</div>}
       <div style={{ fontSize: isMobile ? 9 : 11, color: COLORS.subLight, marginTop: 3 }}>{label}</div>
     </div>
   );
 }
+
+const backBtnStyle = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  color: COLORS.sub,
+  fontSize: 14,
+  fontWeight: 600,
+  padding: "4px 0",
+  marginBottom: 20,
+  fontFamily: "inherit",
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
+};
 
 const selectStyle = {
   background: COLORS.surface,

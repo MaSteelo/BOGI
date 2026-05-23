@@ -63,23 +63,43 @@ function Header({ profile, session }) {
               </span>
             )}
             {session && <NotificationBell session={session} />}
-            <button
-              onClick={() => supabase.auth.signOut()}
-              style={{
-                background: "transparent",
-                color: COLORS.sub,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 8,
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                flexShrink: 0,
-              }}
-            >
-              로그아웃
-            </button>
+            {session ? (
+              <button
+                onClick={() => supabase.auth.signOut()}
+                style={{
+                  background: "transparent",
+                  color: COLORS.sub,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  flexShrink: 0,
+                }}
+              >
+                로그아웃
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate("/")}
+                style={{
+                  background: COLORS.accent,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  flexShrink: 0,
+                }}
+              >
+                로그인
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -206,6 +226,7 @@ function BottomTabBar({ isAdmin }) {
 }
 
 export default function App() {
+  const location = useLocation();
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [profile, setProfile] = useState(null);
@@ -254,7 +275,8 @@ export default function App() {
     );
   }
 
-  if (!session) return <Auth />;
+  const isPublicRoute = location.pathname.startsWith("/user/");
+  if (!session && !isPublicRoute) return <Auth />;
 
   return (
     <div
@@ -266,14 +288,15 @@ export default function App() {
       }}
     >
       <Header profile={profile} session={session} />
-      <div style={{ paddingBottom: TAB_H }}>
+      <div style={{ paddingBottom: session ? TAB_H : 0 }}>
         <Routes>
           <Route path="/" element={<Home session={session} />} />
-          <Route path="/mypage" element={<MyPage session={session} profile={profile} />} />
+          <Route path="/mypage" element={<MyPage session={session} profile={profile} isOwnPage={true} />} />
+          <Route path="/user/:userId" element={<MyPage session={session} profile={profile} isOwnPage={false} />} />
           <Route path="/admin" element={<AdminPage session={session} profile={profile} />} />
         </Routes>
       </div>
-      <BottomTabBar isAdmin={profile?.is_admin ?? false} />
+      {session && <BottomTabBar isAdmin={profile?.is_admin ?? false} />}
     </div>
   );
 }

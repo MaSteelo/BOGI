@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabase";
 import EditProposalModal from "./components/EditProposalModal";
 import { HalfStarDisplay } from "./components/StarDisplay";
@@ -193,6 +194,29 @@ function HalfStarRating({ value, onChange, size = 30 }) {
         );
       })}
     </div>
+  );
+}
+
+function NicknameLink({ userId, nickname }) {
+  const navigate = useNavigate();
+  const [hovered, setHovered] = useState(false);
+  return (
+    <span
+      onClick={(e) => { e.stopPropagation(); navigate(`/user/${userId}`); }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        fontSize: 12,
+        fontWeight: 700,
+        color: hovered ? COLORS.accent : COLORS.text,
+        textDecoration: hovered ? "underline" : "none",
+        textUnderlineOffset: 2,
+        cursor: "pointer",
+        transition: "color 0.15s",
+      }}
+    >
+      {nickname}
+    </span>
   );
 }
 
@@ -1115,7 +1139,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                                   <div key={review.id} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "10px 12px" }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 4 }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                        <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.text }}>{review.nickname}</span>
+                                        <NicknameLink userId={review.user_id} nickname={review.nickname} />
                                         {review.total_score > 0 && (
                                           <>
                                             <HalfStarDisplay value={review.total_score} size={11} />
