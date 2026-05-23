@@ -1,4 +1,5 @@
-// BGG XML API에서 이미지 URL을 가져와 Supabase games.image_url에 저장
+// BGG XML API에서 이미지를 다운로드해 Supabase Storage에 업로드하고
+// games.image_url을 Supabase public URL로 업데이트
 //
 // 실행 방법 (Node.js 18+ 필요):
 //   VITE_SUPABASE_URL=https://xxx.supabase.co \
@@ -14,7 +15,6 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// .env 파일 파싱 (dotenv 없이)
 function loadEnv() {
   const envPath = join(__dirname, ".env");
   if (!existsSync(envPath)) return {};
@@ -34,6 +34,7 @@ const get = (k) => process.env[k] ?? env[k] ?? "";
 
 const SUPABASE_URL = get("VITE_SUPABASE_URL");
 const SUPABASE_KEY = get("SUPABASE_SERVICE_ROLE_KEY") || get("VITE_SUPABASE_ANON_KEY");
+const BUCKET = "game-images";
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error("❌ 환경 변수가 필요합니다.");
@@ -44,7 +45,6 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 모든 형태의 BGG URL을 https://로 정규화
 function normalizeImageUrl(url) {
   if (!url) return null;
   const u = url.trim();
@@ -52,18 +52,9 @@ function normalizeImageUrl(url) {
   if (u.startsWith("http://")) return "https://" + u.slice(7);
   if (u.startsWith("//")) return "https:" + u;
   if (u.startsWith("cf.geekdo-images.com")) return "https://" + u;
-  // 파일명만 있는 경우: pic1234567.jpg
   if (/^pic\d+\.\w+$/i.test(u)) return `https://cf.geekdo-images.com/${u}`;
-  // 슬래시로 시작하는 경로
   if (u.startsWith("/")) return "https://cf.geekdo-images.com" + u;
   return null;
-}
-
-function isBadUrl(url) {
-  if (!url) return true;
-  const normalized = normalizeImageUrl(url);
-  // 저장된 값이 https://로 시작하지 않으면 재처리 대상
-  return !url.startsWith("https://") && !url.startsWith("http://");
 }
 
 async function fetchXml(url, retries = 3) {
@@ -82,7 +73,6 @@ async function fetchXml(url, retries = 3) {
   throw new Error("재시도 초과");
 }
 
-// BGG 검색: exact 우선, 없으면 일반 검색 첫 결과
 async function searchBggId(name) {
   const base = "https://boardgamegeek.com/xmlapi2/search?type=boardgame&query=";
   let xml = await fetchXml(base + encodeURIComponent(name) + "&exact=1");
@@ -95,8 +85,7 @@ async function searchBggId(name) {
   return m?.[1] ?? null;
 }
 
-// BGG thing API로 <image> 태그 URL만 가져오기 (<thumbnail>은 핫링크 차단됨)
-async function fetchBggImage(bggId) {
+async function fetchBggImageUrl(bggId) {
   for (let i = 0; i < 3; i++) {
     const xml = await fetchXml(`https://boardgamegeek.com/xmlapi2/thing?id=${bggId}`);
     if (xml.toLowerCase().includes("try again later")) {
@@ -104,9 +93,30 @@ async function fetchBggImage(bggId) {
       continue;
     }
     const img = xml.match(/<image>\s*([^\s<]+)\s*<\/image>/)?.[1];
-    return normalizeImageUrl(img) ?? null;  // thumbnail은 사용하지 않음
+    return normalizeImageUrl(img) ?? null;
   }
   return null;
+}
+
+// 이미지 다운로드 후 Supabase Storage에 업로드, public URL 반환
+async function downloadAndUpload(imageUrl, gameId) {
+  const res = await fetch(imageUrl);
+  if (!res.ok) throw new Error(`이미지 다운로드 실패: HTTP ${res.status}`);
+
+  const contentType = res.headers.get("content-type") ?? "image/jpeg";
+  const ext = contentType.split("/")[1]?.split(";")[0] ?? "jpg";
+  const filePath = `${gameId}.${ext}`;
+
+  const buffer = await res.arrayBuffer();
+
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(filePath, buffer, { contentType, upsert: true });
+
+  if (error) throw new Error(`Storage 업로드 실패: ${error.message}`);
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+  return data.publicUrl;
 }
 
 async function main() {
@@ -114,18 +124,16 @@ async function main() {
 
   const [{ data: games, error: gErr }, { data: rankings }] = await Promise.all([
     supabase.from("games").select("id, name_ko, name_en, bgg_rank, image_url").order("name_ko"),
-    supabase.from("bgg_rankings").select("rank, name_en"),  // thumbnail 대신 name_en 사용
+    supabase.from("bgg_rankings").select("rank, name_en"),
   ]);
 
   if (gErr) { console.error("❌ 게임 로드 실패:", gErr.message); process.exit(1); }
 
-  // rank → BGG 공식 영문명 맵 (이름으로 API 검색에 사용)
   const rankToName = {};
   rankings?.forEach((r) => { if (r.name_en) rankToName[r.rank] = r.name_en; });
 
-  // 전체 게임 재처리 (기존 URL이 thumbnail이어서 차단됐을 수 있으므로 모두 업데이트)
   const targets = games;
-  console.log(`총 ${targets.length}개 전체 재처리 시작 (기존 image_url 포함)\n`);
+  console.log(`총 ${targets.length}개 전체 재처리 시작\n`);
 
   let updated = 0, failed = 0;
   const pad = String(targets.length).length;
@@ -134,8 +142,6 @@ async function main() {
     const game = targets[i];
     const label = `[${String(i + 1).padStart(pad)}/${targets.length}] ${game.name_ko}`;
 
-    // bgg_rank 있으면 bgg_rankings의 공식 영문명으로 검색 (더 정확함)
-    // bgg_rank 없으면 games.name_en → name_ko 순으로 검색
     const searchName = (game.bgg_rank && rankToName[game.bgg_rank])
       || game.name_en
       || game.name_ko;
@@ -145,16 +151,19 @@ async function main() {
       const bggId = await searchBggId(searchName);
       if (!bggId) { console.log("BGG ID 없음 ❌"); failed++; await sleep(2000); continue; }
 
-      await sleep(1500);
-      const imageUrl = await fetchBggImage(bggId);
+      await sleep(2000);
+      const imageUrl = await fetchBggImageUrl(bggId);
       if (!imageUrl) { console.log(`BGG ${bggId} <image> 없음 ❌`); failed++; await sleep(2000); continue; }
 
-      const { error } = await supabase.from("games").update({ image_url: imageUrl }).eq("id", game.id);
+      await sleep(2000);
+      const publicUrl = await downloadAndUpload(imageUrl, game.id);
+
+      const { error } = await supabase.from("games").update({ image_url: publicUrl }).eq("id", game.id);
       if (error) {
         console.log(`DB 오류 ❌ ${error.message}`);
         failed++;
       } else {
-        console.log(`✅ ${imageUrl}`);
+        console.log(`✅ ${publicUrl}`);
         updated++;
       }
       await sleep(2000);
