@@ -118,6 +118,7 @@ export default function Home({ session }) {
   const [filterAge, setFilterAge] = useState(null);
   const [sortOrder, setSortOrder] = useState("name");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [focusedSearch, setFocusedSearch] = useState(false);
 
   // 검색 디바운스 300ms
   useEffect(() => {
@@ -278,9 +279,12 @@ export default function Home({ session }) {
       {rankings.length > 0 && (
         <section style={{ marginBottom: isMobile ? 32 : 48 }}>
           <div style={{ marginBottom: 12 }}>
-            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
-              🌍 BGG 글로벌 TOP
-            </h2>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ width: 3, height: 20, borderRadius: 2, background: COLORS.accent, marginRight: 10, flexShrink: 0 }} />
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
+                🌍 BGG 글로벌 TOP
+              </h2>
+            </div>
             <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
               BoardGameGeek 기준 TOP {rankings.length}
             </div>
@@ -297,9 +301,12 @@ export default function Home({ session }) {
       {!loading && (
         <section style={{ marginBottom: isMobile ? 32 : 48 }}>
           <div style={{ marginBottom: 12 }}>
-            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
-              🏆 BOGI 유저 평점 TOP
-            </h2>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ width: 3, height: 20, borderRadius: 2, background: COLORS.accent, marginRight: 10, flexShrink: 0 }} />
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
+                🏆 BOGI 유저 평점 TOP
+              </h2>
+            </div>
             {bogiTop.length > 0 && (
               <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
                 멤버 평점 기준 TOP {bogiTop.length}
@@ -346,9 +353,12 @@ export default function Home({ session }) {
       <section>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
           <div>
-            <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
-              📚 전체 게임
-            </h2>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ width: 3, height: 20, borderRadius: 2, background: COLORS.accent, marginRight: 10, flexShrink: 0 }} />
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
+                📚 전체 게임
+              </h2>
+            </div>
             <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
               {hasFilter
                 ? <><span style={{ color: COLORS.accent, fontWeight: 700 }}>{filtered.length}개</span> 검색됨 (전체 {games.length}개)</>
@@ -385,8 +395,17 @@ export default function Home({ session }) {
               id="search-input"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
+              onFocus={() => setFocusedSearch(true)}
+              onBlur={() => setFocusedSearch(false)}
               placeholder="게임 이름으로 검색 (한글/영문)"
-              style={{ ...inputStyle, paddingLeft: 36 }}
+              style={{
+                ...inputStyle,
+                borderRadius: 12,
+                padding: "12px 16px",
+                paddingLeft: 40,
+                border: `1px solid ${focusedSearch ? COLORS.accent : COLORS.border}`,
+                boxShadow: focusedSearch ? "0 0 0 3px rgba(255,107,53,0.1)" : "none",
+              }}
             />
           </div>
           {isMobile && (
@@ -395,12 +414,13 @@ export default function Home({ session }) {
               style={{
                 flexShrink: 0,
                 border: `1px solid ${filterOpen || activeFilterCount > 0 ? COLORS.accent : COLORS.border}`,
-                borderRadius: 8,
-                padding: "0 14px",
-                background: filterOpen || activeFilterCount > 0 ? COLORS.accentLight : COLORS.surface,
-                color: filterOpen || activeFilterCount > 0 ? COLORS.accent : COLORS.sub,
+                borderRadius: 20,
+                padding: "0 16px",
+                background: filterOpen || activeFilterCount > 0 ? COLORS.accent : COLORS.surface,
+                color: filterOpen || activeFilterCount > 0 ? "#fff" : COLORS.sub,
                 fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
                 display: "flex", alignItems: "center", gap: 5,
+                transition: "all 0.15s",
               }}
             >
               필터
@@ -419,7 +439,7 @@ export default function Home({ session }) {
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
-            style={{ ...inputStyle, width: isMobile ? 120 : 180, flexShrink: 0 }}
+            style={{ ...inputStyle, width: isMobile ? 120 : 180, flexShrink: 0, borderRadius: 10 }}
           >
             <option value="name">이름 (가나다)</option>
             <option value="players">인원 많은순</option>
@@ -447,9 +467,11 @@ export default function Home({ session }) {
           <div style={{ textAlign: "center", padding: 80, color: COLORS.sub }}>로딩 중...</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: 80, color: COLORS.sub }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🎲</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>
+              {searchInput.trim() ? "😅" : "🎲"}
+            </div>
             <div style={{ fontWeight: 700, marginBottom: 8 }}>
-              {hasFilter ? "조건에 맞는 게임이 없어요" : "등록된 게임이 없어요"}
+              {searchInput.trim() ? "검색 결과가 없어요 😅" : hasFilter ? "조건에 맞는 게임이 없어요" : "등록된 게임이 없어요"}
             </div>
             {hasFilter && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
@@ -483,7 +505,7 @@ export default function Home({ session }) {
           <div style={{
             display: "grid",
             gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(180px, 1fr))",
-            gap: isMobile ? 8 : 16,
+            gap: 12,
           }}>
             {filtered.map((g) => (
               <GameCard
@@ -515,12 +537,12 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
   const [showModal, setShowModal] = useState(false);
   const [hovered, setHovered] = useState(false);
 
-  const badgeColor = rank <= 3 ? RANK_COLORS[rank - 1] : COLORS.accent;
+  const badgeColor = rank <= 3 ? RANK_COLORS[rank - 1] : "#9ca3af";
   const genreStyle = getGenreStyle(game.genre);
   const imageUrl = safeImageUrl(game.image_url);
   const cardW = isMobile ? 120 : 152;
   const imgH = isMobile ? 76 : 90;
-  const emojiFz = isMobile ? 30 : 38;
+  const emojiFz = 32;
   const hasMyScore = reviewSummary?.latestScore != null;
 
   return (
@@ -602,7 +624,7 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
             {game.name_ko}
           </div>
           {/* 커뮤니티 평균 */}
-          <div style={{ display: "flex", alignItems: "center", gap: 3, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 3, background: "#fff8f5", borderRadius: 8, padding: "4px 8px" }}>
             <HalfStarDisplay value={avg} size={isMobile ? 11 : 12} />
             <span style={{ fontSize: isMobile ? 10 : 11, color: COLORS.accent, fontWeight: 700, flexShrink: 0 }}>
               {avg.toFixed(1)}
@@ -667,17 +689,18 @@ function RankCard({ ranking, isMobile, reviewSummary }) {
           <div style={{
             width: "100%", height: "100%",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: isMobile ? 28 : 40, background: "linear-gradient(135deg, #f3f4f6, #d4d4d8)",
+            fontSize: 32, background: "linear-gradient(135deg, #f3f4f6, #d4d4d8)",
           }}>
             🎲
           </div>
         )}
         <div style={{
           position: "absolute", top: 6, left: 6,
-          background: COLORS.accent, color: "#fff",
+          background: ranking.rank <= 3 ? RANK_COLORS[ranking.rank - 1] : "#9ca3af",
+          color: "#fff",
           fontSize: isMobile ? 11 : 13, fontWeight: 800,
           padding: isMobile ? "2px 6px" : "3px 9px", borderRadius: 14,
-          boxShadow: "0 2px 6px rgba(255,107,53,0.4)",
+          boxShadow: `0 2px 6px ${ranking.rank <= 3 ? RANK_COLORS[ranking.rank - 1] : "#9ca3af"}88`,
         }}>
           #{ranking.rank}
         </div>
@@ -714,7 +737,7 @@ function RankCard({ ranking, isMobile, reviewSummary }) {
 // ── 공통 스타일 ──────────────────────────────────────────────
 const scrollContainerStyle = {
   display: "flex",
-  gap: 12,
+  gap: 10,
   overflowX: "auto",
   paddingBottom: 12,
   scrollbarWidth: "thin",
@@ -735,7 +758,7 @@ const inputStyle = {
 
 const iconStyle = {
   position: "absolute",
-  left: 12, top: "50%",
+  left: 14, top: "50%",
   transform: "translateY(-50%)",
   fontSize: 14,
   pointerEvents: "none",

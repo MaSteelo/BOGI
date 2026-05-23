@@ -261,6 +261,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
 
   // 공감 상태: { [reviewId]: { count: number, likedByMe: boolean } }
   const [likesMap, setLikesMap] = useState({});
+  const [hoveredLikeId, setHoveredLikeId] = useState(null);
 
   // 토스트
   const [toastVisible, setToastVisible] = useState(false);
@@ -521,8 +522,9 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
           borderRadius: 12,
           overflow: "hidden",
           cursor: "pointer",
-          boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.08)" : "0 1px 2px rgba(0,0,0,0.03)",
-          transition: "border-color 0.2s, box-shadow 0.2s",
+          boxShadow: hovered ? "0 4px 20px rgba(0,0,0,0.12)" : "0 2px 12px rgba(0,0,0,0.06)",
+          transform: hovered ? "translateY(-2px)" : "translateY(0)",
+          transition: "border-color 0.2s, box-shadow 0.2s, transform 0.2s",
         }}
       >
         <div
@@ -1147,23 +1149,25 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                                           </>
                                         )}
                                       </div>
-                                      <span style={{ fontSize: 10, color: COLORS.subLight }}>{review.played_at || review.created_at?.slice(0, 10)}</span>
+                                      <span style={{ fontSize: 11, color: COLORS.subLight }}>{review.played_at || review.created_at?.slice(0, 10)}</span>
                                     </div>
                                     {!review.participants_private && review.participants && (
                                       <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: review.memo ? 3 : 0 }}>👥 {review.participants}</div>
                                     )}
-                                    {review.memo && <div style={{ fontSize: 11, color: COLORS.sub, lineHeight: 1.5, wordBreak: "break-word" }}>{review.memo}</div>}
+                                    {review.memo && <div style={{ fontSize: 13, color: "#404040", lineHeight: 1.6, wordBreak: "break-word" }}>{review.memo}</div>}
                                     {review.user_id !== session?.user.id && (
                                       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
                                         <button
                                           onClick={() => toggleLike(review.id)}
+                                          onMouseEnter={() => setHoveredLikeId(review.id)}
+                                          onMouseLeave={() => setHoveredLikeId(null)}
                                           style={{
                                             display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                                            background: likesMap[review.id]?.likedByMe ? COLORS.accentLight : "transparent",
-                                            border: `1px solid ${likesMap[review.id]?.likedByMe ? COLORS.accent : COLORS.border}`,
+                                            background: likesMap[review.id]?.likedByMe || hoveredLikeId === review.id ? COLORS.accentLight : "transparent",
+                                            border: `1px solid ${likesMap[review.id]?.likedByMe ? COLORS.accent : hoveredLikeId === review.id ? COLORS.accent : COLORS.border}`,
                                             borderRadius: 20, padding: "0 12px",
                                             cursor: "pointer", fontFamily: "inherit",
-                                            color: likesMap[review.id]?.likedByMe ? COLORS.accent : COLORS.subLight,
+                                            color: likesMap[review.id]?.likedByMe || hoveredLikeId === review.id ? COLORS.accent : COLORS.subLight,
                                             fontSize: 12, fontWeight: 600,
                                             height: isMobile ? 44 : 28, minWidth: isMobile ? 44 : undefined,
                                             transition: "all 0.15s",
