@@ -7,8 +7,8 @@ const COLORS = {
   text: "#1a1a1a",
   sub: "#737373",
   subLight: "#a3a3a3",
-  accent: "#ff6b35",
-  accentLight: "#fff1ec",
+  accent: "#1e643c",
+  accentLight: "#e8f5ee",
 };
 
 const TYPE_ICON = {

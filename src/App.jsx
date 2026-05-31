@@ -14,7 +14,7 @@ const COLORS = {
   text: "#1a1a1a",
   sub: "#737373",
   subLight: "#a3a3a3",
-  accent: "#ff6b35",
+  accent: "#1e643c",
 };
 
 const TAB_H = 68;
@@ -239,7 +239,7 @@ function BottomTabBar({ isAdmin }) {
             fontSize: 24,
             color: "#fff",
             fontWeight: 300,
-            boxShadow: "0 6px 20px rgba(255,107,53,0.5)",
+            boxShadow: "0 6px 20px rgba(30,100,60,0.5)",
             lineHeight: 1,
           }}
         >

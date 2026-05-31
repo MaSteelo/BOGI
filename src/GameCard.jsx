@@ -37,8 +37,8 @@ const COLORS = {
   text: "#1a1a1a",
   sub: "#737373",
   subLight: "#a3a3a3",
-  accent: "#ff6b35",
-  accentLight: "#fff1ec",
+  accent: "#1e643c",
+  accentLight: "#e8f5ee",
   error: "#ef4444",
 };
 
@@ -558,7 +558,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
             </div>
           )}
           {reviewSummary && (
-            <div style={badgeStyle("rgba(255,107,53,0.88)", "#fff", { top: 8, right: 8 })}>
+            <div style={badgeStyle("rgba(30,100,60,0.88)", "#fff", { top: 8, right: 8 })}>
               {reviewSummary.latestScore
                 ? `⭐ ${reviewSummary.latestScore}`
                 : `⭐ ${reviewSummary.count}회`}

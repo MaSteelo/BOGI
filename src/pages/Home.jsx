@@ -35,8 +35,8 @@ const COLORS = {
   text: "#1a1a1a",
   sub: "#737373",
   subLight: "#a3a3a3",
-  accent: "#ff6b35",
-  accentLight: "#fff1ec",
+  accent: "#1e643c",
+  accentLight: "#e8f5ee",
   good: "#22c55e",
 };
 
@@ -404,7 +404,7 @@ export default function Home({ session }) {
                 padding: "12px 16px",
                 paddingLeft: 40,
                 border: `1px solid ${focusedSearch ? COLORS.accent : COLORS.border}`,
-                boxShadow: focusedSearch ? "0 0 0 3px rgba(255,107,53,0.1)" : "none",
+                boxShadow: focusedSearch ? "0 0 0 3px rgba(30,100,60,0.1)" : "none",
               }}
             />
           </div>
@@ -601,7 +601,7 @@ function BogiRankCard({ rank, game, avg, count, session, reviewSummary, onReview
             <div
               style={{
                 position: "absolute", top: 6, right: 6,
-                background: "rgba(255,107,53,0.88)", backdropFilter: "blur(4px)", color: "#fff",
+                background: "rgba(30,100,60,0.88)", backdropFilter: "blur(4px)", color: "#fff",
                 fontSize: 10, fontWeight: 700,
                 padding: "3px 8px", borderRadius: 10,
               }}
@@ -707,7 +707,7 @@ function RankCard({ ranking, isMobile, reviewSummary }) {
         {hasMyScore && (
           <div style={{
             position: "absolute", top: 6, right: 6,
-            background: "rgba(255,107,53,0.88)", backdropFilter: "blur(4px)", color: "#fff",
+            background: "rgba(30,100,60,0.88)", backdropFilter: "blur(4px)", color: "#fff",
             fontSize: 10, fontWeight: 700,
             padding: "3px 8px", borderRadius: 10,
           }}>

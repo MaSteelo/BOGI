@@ -12,7 +12,7 @@ const COLORS = {
   text: "#1a1a1a",
   sub: "#737373",
   subLight: "#a3a3a3",
-  accent: "#ff6b35",
+  accent: "#1e643c",
 };
 
 const GENRE_STYLE = {
@@ -125,7 +125,7 @@ function RatingChart({ dist, scores }) {
   return (
     <>
       {comment && (
-        <div style={{ fontSize: 12, color: COLORS.accent, fontWeight: 700, marginBottom: 12, padding: "6px 12px", background: "#fff1ec", borderRadius: 8, display: "inline-block" }}>
+        <div style={{ fontSize: 12, color: COLORS.accent, fontWeight: 700, marginBottom: 12, padding: "6px 12px", background: "#e8f5ee", borderRadius: 8, display: "inline-block" }}>
           {comment}
         </div>
       )}
@@ -419,7 +419,7 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
           boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
         }}>
           {/* 그라데이션 배너 */}
-          <div style={{ height: 120, background: "linear-gradient(135deg, #fff1ec 0%, #fafafa 100%)" }} />
+          <div style={{ height: 120, background: "linear-gradient(135deg, #e8f5ee 0%, #fafafa 100%)" }} />
           {/* 프로필 콘텐츠 */}
           <div style={{ padding: "0 20px 24px", marginTop: -32 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -431,7 +431,7 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
                 color: "#fff", fontSize: 24, fontWeight: 700,
                 flexShrink: 0,
                 border: "3px solid #fff",
-                boxShadow: "0 2px 8px rgba(255,107,53,0.3)",
+                boxShadow: "0 2px 8px rgba(30,100,60,0.3)",
               }}>
                 {(displayNickname || "?").charAt(0)}
               </div>

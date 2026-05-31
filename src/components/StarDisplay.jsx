@@ -1,4 +1,4 @@
-const ACCENT = "#ff6b35";
+const ACCENT = "#1e643c";
 
 // 반개 채움 별점 표시 컴포넌트 (0.5 단위 시각화)
 export function HalfStarDisplay({ value, size = 13 }) {
