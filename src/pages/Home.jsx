@@ -114,10 +114,11 @@ export default function Home({ session }) {
 
   // 필터
   const [filterGenres, setFilterGenres] = useState(new Set());
-  const [filterPlayers, setFilterPlayers] = useState("");
-  const [filterAge, setFilterAge] = useState(null);
+  const [filterPlayers, setFilterPlayers] = useState(null);
+  const [filterTime, setFilterTime] = useState(null);
   const [sortOrder, setSortOrder] = useState("name");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [gameCommunityStats, setGameCommunityStats] = useState({});
   const [focusedSearch, setFocusedSearch] = useState(false);
 
   // 검색 디바운스 300ms
@@ -188,6 +189,12 @@ export default function Home({ session }) {
             .slice(0, 20);
 
           setBogiTop(top);
+
+          const statMap = {};
+          Object.entries(agg).forEach(([id, { sum, count }]) => {
+            statMap[id] = { avg: sum / count, count };
+          });
+          setGameCommunityStats(statMap);
         }
       }
 
@@ -213,20 +220,14 @@ export default function Home({ session }) {
     return map;
   }, [games]);
 
-  const allGenres = useMemo(() => {
-    const set = new Set();
-    games.forEach((g) => g.genre?.forEach((x) => set.add(x)));
-    return Array.from(set).sort();
-  }, [games]);
-
   const hasFilter =
     searchInput.trim() !== "" ||
     filterGenres.size > 0 ||
-    filterPlayers !== "" ||
-    filterAge !== null;
+    filterPlayers !== null ||
+    filterTime !== null;
 
   const activeFilterCount =
-    filterGenres.size + (filterPlayers !== "" ? 1 : 0) + (filterAge !== null ? 1 : 0);
+    filterGenres.size + (filterPlayers !== null ? 1 : 0) + (filterTime !== null ? 1 : 0);
 
   const toggleGenre = (genre) => {
     setFilterGenres((prev) => {
@@ -241,8 +242,9 @@ export default function Home({ session }) {
     setSearchInput("");
     setSearchQuery("");
     setFilterGenres(new Set());
-    setFilterPlayers("");
-    setFilterAge(null);
+    setFilterPlayers(null);
+    setFilterTime(null);
+    setSortOrder("name");
   };
 
   const filtered = useMemo(() => {
@@ -256,21 +258,27 @@ export default function Home({ session }) {
     if (filterGenres.size > 0) {
       arr = arr.filter((g) => g.genre?.some((gen) => filterGenres.has(gen)));
     }
-    if (filterPlayers !== "") {
-      const n = parseInt(filterPlayers, 10);
-      if (!isNaN(n) && n > 0) {
-        arr = arr.filter((g) => (g.min_players ?? 0) <= n && n <= (g.max_players ?? 99));
+    if (filterPlayers !== null) {
+      if (filterPlayers === 6) {
+        arr = arr.filter((g) => (g.max_players ?? 0) >= 6);
+      } else {
+        arr = arr.filter((g) => (g.min_players ?? 0) <= filterPlayers && filterPlayers <= (g.max_players ?? 99));
       }
     }
-    if (filterAge !== null) {
-      arr = arr.filter((g) => g.min_age != null && g.min_age <= filterAge);
+    if (filterTime !== null) {
+      if (filterTime === 9999) {
+        arr = arr.filter((g) => (g.play_minutes ?? 0) > 120);
+      } else {
+        arr = arr.filter((g) => g.play_minutes != null && g.play_minutes <= filterTime);
+      }
     }
     arr = [...arr];
     if (sortOrder === "name") arr.sort((a, b) => a.name_ko.localeCompare(b.name_ko, "ko"));
-    if (sortOrder === "players") arr.sort((a, b) => (b.max_players || 0) - (a.max_players || 0));
-    if (sortOrder === "time") arr.sort((a, b) => (a.play_minutes || 0) - (b.play_minutes || 0));
+    else if (sortOrder === "rating") arr.sort((a, b) => (gameCommunityStats[b.id]?.avg ?? 0) - (gameCommunityStats[a.id]?.avg ?? 0));
+    else if (sortOrder === "bgg") arr.sort((a, b) => (a.bgg_rank ?? 99999) - (b.bgg_rank ?? 99999));
+    else if (sortOrder === "year") arr.sort((a, b) => (b.year_published ?? 0) - (a.year_published ?? 0));
     return arr;
-  }, [games, searchQuery, filterGenres, filterPlayers, filterAge, sortOrder]);
+  }, [games, searchQuery, filterGenres, filterPlayers, filterTime, sortOrder, gameCommunityStats]);
 
   return (
     <main style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "16px 12px" : "32px 24px" }}>
@@ -408,56 +416,48 @@ export default function Home({ session }) {
               }}
             />
           </div>
-          {isMobile && (
-            <button
-              onClick={() => setFilterOpen((v) => !v)}
-              style={{
-                flexShrink: 0,
-                border: `1px solid ${filterOpen || activeFilterCount > 0 ? COLORS.accent : COLORS.border}`,
-                borderRadius: 20,
-                padding: "0 16px",
-                background: filterOpen || activeFilterCount > 0 ? COLORS.accent : COLORS.surface,
-                color: filterOpen || activeFilterCount > 0 ? "#fff" : COLORS.sub,
-                fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                display: "flex", alignItems: "center", gap: 5,
-                transition: "all 0.15s",
-              }}
-            >
-              필터
-              {activeFilterCount > 0 && (
-                <span style={{
-                  background: COLORS.accent, color: "#fff", borderRadius: "50%",
-                  width: 17, height: 17, fontSize: 10, fontWeight: 800,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  {activeFilterCount}
-                </span>
-              )}
-              <span style={{ fontSize: 10 }}>{filterOpen ? "▲" : "▼"}</span>
-            </button>
-          )}
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            style={{ ...inputStyle, width: isMobile ? 120 : 180, flexShrink: 0, borderRadius: 10 }}
+          <button
+            onClick={() => setFilterOpen((v) => !v)}
+            style={{
+              flexShrink: 0,
+              border: `1px solid ${filterOpen || activeFilterCount > 0 ? COLORS.accent : COLORS.border}`,
+              borderRadius: 20,
+              padding: "0 16px",
+              background: filterOpen || activeFilterCount > 0 ? COLORS.accent : COLORS.surface,
+              color: filterOpen || activeFilterCount > 0 ? "#fff" : COLORS.sub,
+              fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+              display: "flex", alignItems: "center", gap: 5,
+              transition: "all 0.15s",
+              height: "100%",
+            }}
           >
-            <option value="name">이름 (가나다)</option>
-            <option value="players">인원 많은순</option>
-            <option value="time">플레이타임 짧은순</option>
-          </select>
+            🔽 필터
+            {activeFilterCount > 0 && (
+              <span style={{
+                background: filterOpen ? "rgba(255,255,255,0.3)" : COLORS.accent,
+                color: "#fff",
+                borderRadius: "50%",
+                width: 17, height: 17, fontSize: 10, fontWeight: 800,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* 필터 패널 */}
-        {(!isMobile || filterOpen) && (
+        {filterOpen && (
           <GameFilter
-            allGenres={allGenres}
             filterGenres={filterGenres}
             onToggleGenre={toggleGenre}
             filterPlayers={filterPlayers}
             onPlayersChange={setFilterPlayers}
-            filterAge={filterAge}
-            onAgeChange={setFilterAge}
-            hasFilter={hasFilter}
+            filterTime={filterTime}
+            onTimeChange={setFilterTime}
+            sortOrder={sortOrder}
+            onSortChange={setSortOrder}
+            hasFilter={hasFilter || sortOrder !== "name"}
             onReset={resetFilters}
           />
         )}
