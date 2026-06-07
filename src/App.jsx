@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import MyPage from "./pages/MyPage";
 import AdminPage from "./pages/AdminPage";
 import Privacy from "./pages/Privacy";
+import DeleteAccount from "./pages/DeleteAccount";
 import NotificationBell from "./components/NotificationBell";
 
 const COLORS = {
@@ -323,10 +324,12 @@ export default function App() {
 
   const isPublicRoute =
     location.pathname.startsWith("/user/") ||
-    location.pathname === "/privacy";
+    location.pathname === "/privacy" ||
+    location.pathname === "/delete-account";
   if (!session && !isPublicRoute) return <Auth />;
 
   if (location.pathname === "/privacy") return <Privacy />;
+  if (location.pathname === "/delete-account") return <DeleteAccount />;
 
   return (
     <div
@@ -345,6 +348,7 @@ export default function App() {
           <Route path="/user/:userId" element={<MyPage session={session} profile={profile} isOwnPage={false} />} />
           <Route path="/admin" element={<AdminPage session={session} profile={profile} />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/delete-account" element={<DeleteAccount />} />
         </Routes>
       </div>
       {session && <BottomTabBar isAdmin={profile?.is_admin ?? false} />}
