@@ -32,7 +32,9 @@ export default function GameSubmissionModal({ session, onClose }) {
     min_age: "",
     description: "",
     reason: "",
+    image_url: "",
   });
+  const [imagePreviewError, setImagePreviewError] = useState(false);
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -81,6 +83,7 @@ export default function GameSubmissionModal({ session, onClose }) {
       genre:        selectedGenres.length > 0 ? selectedGenres : null,
       description:  form.description.trim()  || null,
       reason:       form.reason.trim()        || null,
+      image_url:    form.image_url.trim()     || null,
       status:       "pending",
     });
 
@@ -303,6 +306,34 @@ export default function GameSubmissionModal({ session, onClose }) {
                 placeholder="게임의 특징이나 플레이 방식을 간단히 설명해주세요."
                 style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }}
               />
+            </div>
+
+            {/* 이미지 URL */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>
+                이미지 URL
+                <span style={{ fontSize: 11, color: COLORS.subLight, fontWeight: 400, marginLeft: 6 }}>선택</span>
+              </label>
+              <input
+                type="url"
+                value={form.image_url}
+                onChange={(e) => { set("image_url", e.target.value); setImagePreviewError(false); }}
+                placeholder="https://..."
+                style={inputStyle}
+              />
+              {form.image_url.trim() && !imagePreviewError && (
+                <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden", width: 80, height: 80, border: `1px solid ${COLORS.border}` }}>
+                  <img
+                    src={form.image_url.trim()}
+                    alt="미리보기"
+                    onError={() => setImagePreviewError(true)}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                </div>
+              )}
+              {imagePreviewError && (
+                <div style={{ fontSize: 11, color: COLORS.error, marginTop: 5 }}>이미지를 불러올 수 없어요.</div>
+              )}
             </div>
 
             {/* 신청 사유 */}

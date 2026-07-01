@@ -338,6 +338,40 @@ export default function AdminPage({ session, profile }) {
 
   const pendingSubCount = subCounts["pending"] ?? 0;
 
+  // ── 신고 목록 상태 ──
+  const [reports, setReports]           = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportStatusTab, setReportStatusTab] = useState("pending");
+
+  const loadReports = useCallback(async () => {
+    setReportsLoading(true);
+    const { data: rows } = await supabase
+      .from("reports")
+      .select("id, review_id, reporter_id, reason, detail, status, created_at, reviews(game_id, memo, total_score, user_id)")
+      .eq("status", reportStatusTab)
+      .order("created_at", { ascending: reportStatusTab === "pending" });
+
+    if (!rows) { setReports([]); setReportsLoading(false); return; }
+
+    const reporterIds = [...new Set(rows.map((r) => r.reporter_id))];
+    const { data: profileRows } = await supabase
+      .from("profiles").select("id, nickname").in("id", reporterIds);
+    const nickMap = {};
+    profileRows?.forEach((p) => { nickMap[p.id] = p.nickname; });
+
+    setReports(rows.map((r) => ({ ...r, reporterNickname: nickMap[r.reporter_id] || "알 수 없음" })));
+    setReportsLoading(false);
+  }, [reportStatusTab]);
+
+  useEffect(() => {
+    if (section === "reports") loadReports();
+  }, [section, loadReports]);
+
+  const handleReportAction = async (reportId, newStatus) => {
+    await supabase.from("reports").update({ status: newStatus }).eq("id", reportId);
+    loadReports();
+  };
+
   return (
     <main style={{ maxWidth: 860, margin: "0 auto", padding: "32px 24px" }}>
       {/* 섹션 스위처 */}
@@ -345,6 +379,7 @@ export default function AdminPage({ session, profile }) {
         {[
           { key: "edits",       label: "🛠 편집 검토", badge: counts["pending"] },
           { key: "submissions", label: "➕ 게임 추가", badge: pendingSubCount },
+          { key: "reports",     label: "🚨 신고 목록", badge: 0 },
         ].map(({ key, label, badge }) => {
           const active = section === key;
           return (
@@ -737,6 +772,56 @@ export default function AdminPage({ session, profile }) {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── 신고 목록 섹션 ── */}
+      {section === "reports" && (
+        <>
+          <div style={{ marginBottom: 24 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>🚨 신고 목록</h2>
+            <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>사용자가 신고한 리뷰를 검토합니다.</div>
+          </div>
+          <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: `1px solid ${COLORS.border}` }}>
+            {[{ key: "pending", label: "대기" }, { key: "resolved", label: "처리됨" }, { key: "dismissed", label: "기각됨" }].map((tab) => {
+              const active = reportStatusTab === tab.key;
+              return (
+                <button key={tab.key} onClick={() => setReportStatusTab(tab.key)} style={{ background: "none", border: "none", cursor: "pointer", padding: "10px 20px", fontFamily: "inherit", fontSize: 14, fontWeight: active ? 700 : 500, color: active ? COLORS.accent : COLORS.sub, borderBottom: active ? `2px solid ${COLORS.accent}` : "2px solid transparent", marginBottom: -1, transition: "all 0.15s" }}>
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+          {reportsLoading ? (
+            <div style={{ textAlign: "center", padding: 60, color: COLORS.subLight }}>불러오는 중...</div>
+          ) : reports.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 60, color: COLORS.subLight }}><div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>신고 없음</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {reports.map((r) => (
+                <div key={r.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: "16px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, flexWrap: "wrap", gap: 4 }}>
+                    <div>
+                      <span style={{ fontWeight: 800, fontSize: 14, color: COLORS.text }}>{r.reason}</span>
+                      {r.detail && <span style={{ fontSize: 12, color: COLORS.sub, marginLeft: 8 }}>— {r.detail}</span>}
+                    </div>
+                    <span style={{ fontSize: 11, color: COLORS.subLight }}>{new Date(r.created_at).toLocaleDateString("ko-KR")} · {r.reporterNickname}</span>
+                  </div>
+                  {r.reviews?.memo && (
+                    <div style={{ fontSize: 12, color: COLORS.sub, background: COLORS.bg, borderRadius: 8, padding: "8px 12px", marginBottom: 10 }}>
+                      신고된 리뷰: {r.reviews.memo.slice(0, 100)}{r.reviews.memo.length > 100 ? "..." : ""}
+                    </div>
+                  )}
+                  {r.status === "pending" && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => handleReportAction(r.id, "dismissed")} style={{ flex: 1, padding: "8px 0", fontSize: 12, fontWeight: 700, border: `1px solid ${COLORS.border}`, borderRadius: 8, background: COLORS.bg, color: COLORS.sub, cursor: "pointer", fontFamily: "inherit" }}>기각</button>
+                      <button onClick={() => handleReportAction(r.id, "resolved")} style={{ flex: 2, padding: "8px 0", fontSize: 12, fontWeight: 700, border: "none", borderRadius: 8, background: COLORS.error, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>처리 완료</button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </>

@@ -89,12 +89,93 @@ const displayScore = (review) => {
 };
 
 const DETAIL_FIELDS = [
-  { key: "story", label: "스토리" },
-  { key: "difficulty", label: "난이도" },
-  { key: "replayability", label: "리플레이" },
-  { key: "quality", label: "품질" },
-  { key: "convenience", label: "편의" },
+  { key: "story",        label: "스토리",  col: "story_rating"       },
+  { key: "difficulty",   label: "난이도",  col: "difficulty_rating"  },
+  { key: "replayability",label: "리플레이",col: "replay_rating"      },
+  { key: "quality",      label: "품질",    col: "quality_rating"     },
+  { key: "convenience",  label: "편의",    col: "convenience_rating" },
 ];
+
+const REPORT_REASONS = [
+  "스팸/광고",
+  "욕설/비하",
+  "스포일러",
+  "게임과 관련 없는 내용",
+  "기타",
+];
+
+function ReportModal({ reviewId, session, onClose }) {
+  const [reason, setReason] = useState("");
+  const [detail, setDetail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleReport = async () => {
+    if (!reason) return;
+    setSubmitting(true);
+    const { error } = await supabase.from("reports").insert({
+      review_id:   reviewId,
+      reporter_id: session.user.id,
+      reason,
+      detail: detail.trim() || null,
+    });
+    setSubmitting(false);
+    if (error) {
+      if (error.code === "23505") {
+        setDone(true);
+      } else {
+        alert("신고 중 오류가 발생했습니다: " + error.message);
+      }
+    } else {
+      setDone(true);
+    }
+  };
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 360, padding: "24px 20px", boxShadow: "0 20px 60px rgba(0,0,0,0.22)" }}>
+        {done ? (
+          <div style={{ textAlign: "center", padding: "16px 0" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: COLORS.text, marginBottom: 6 }}>신고가 접수되었습니다</div>
+            <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 20 }}>검토 후 조치가 이루어집니다.</div>
+            <button onClick={onClose} style={{ padding: "10px 32px", fontSize: 13, fontWeight: 700, border: "none", borderRadius: 10, background: COLORS.accent, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>확인</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontWeight: 800, fontSize: 15, color: COLORS.text, marginBottom: 16 }}>리뷰 신고</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+              {REPORT_REASONS.map((r) => (
+                <label key={r} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: COLORS.text }}>
+                  <input type="radio" name="reason" value={r} checked={reason === r} onChange={() => setReason(r)} style={{ accentColor: COLORS.accent }} />
+                  {r}
+                </label>
+              ))}
+            </div>
+            {reason === "기타" && (
+              <textarea
+                value={detail}
+                onChange={(e) => setDetail(e.target.value)}
+                placeholder="기타 사유를 입력해주세요"
+                rows={3}
+                style={{ width: "100%", boxSizing: "border-box", background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "9px 12px", color: COLORS.text, fontSize: 13, outline: "none", fontFamily: "inherit", resize: "none", marginBottom: 14 }}
+              />
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <button onClick={onClose} style={{ flex: 1, padding: "11px 0", fontSize: 13, fontWeight: 700, border: `1px solid ${COLORS.border}`, borderRadius: 10, background: COLORS.bg, color: COLORS.sub, cursor: "pointer", fontFamily: "inherit" }}>취소</button>
+              <button onClick={handleReport} disabled={!reason || submitting} style={{ flex: 2, padding: "11px 0", fontSize: 13, fontWeight: 700, border: "none", borderRadius: 10, background: !reason || submitting ? "#e5e7eb" : COLORS.error, color: !reason || submitting ? COLORS.sub : "#fff", cursor: !reason || submitting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                {submitting ? "처리 중..." : "신고하기"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function useWindowWidth() {
   const [width, setWidth] = useState(window.innerWidth);
@@ -270,6 +351,9 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
   // 편집 제안 모달
   const [showProposalModal, setShowProposalModal] = useState(false);
 
+  // 신고 모달
+  const [reportingReviewId, setReportingReviewId] = useState(null);
+
   const genreStyle = getGenreStyle(game.genre);
 
   // BogiRankCard 등에서 즉시 열기 요청 시
@@ -324,15 +408,15 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
     setEditingReviewId(review.id);
     setTotalScore(review.total_score || 0);
     setDetailScores({
-      story: review.score_story || 0,
-      difficulty: review.score_difficulty || 0,
-      replayability: review.score_replayability || 0,
-      quality: review.score_quality || 0,
-      convenience: review.score_convenience || 0,
+      story:        review.story_rating        || 0,
+      difficulty:   review.difficulty_rating   || 0,
+      replayability:review.replay_rating       || 0,
+      quality:      review.quality_rating      || 0,
+      convenience:  review.convenience_rating  || 0,
     });
     setDetailExpanded(
-      !!(review.score_story || review.score_difficulty || review.score_replayability ||
-        review.score_quality || review.score_convenience)
+      !!(review.story_rating || review.difficulty_rating || review.replay_rating ||
+        review.quality_rating || review.convenience_rating)
     );
     setMemo(review.memo || "");
     setPlayedAt(review.played_at || "");
@@ -363,7 +447,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
     setAllReviewsLoading(true);
     const { data: reviewRows } = await supabase
       .from("reviews")
-      .select("id, user_id, total_score, memo, played_at, created_at, participants, participants_private")
+      .select("id, user_id, total_score, memo, played_at, created_at, participants, participants_private, story_rating, difficulty_rating, replay_rating, quality_rating, convenience_rating")
       .eq("game_id", game.id)
       .order("created_at", { ascending: false })
       .limit(50);
@@ -449,11 +533,11 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
     const payload = {
       rating_mode: "total",
       total_score: totalScore,
-      score_story: detailScores.story || null,
-      score_difficulty: detailScores.difficulty || null,
-      score_replayability: detailScores.replayability || null,
-      score_quality: detailScores.quality || null,
-      score_convenience: detailScores.convenience || null,
+      story_rating:        detailScores.story         || null,
+      difficulty_rating:   detailScores.difficulty    || null,
+      replay_rating:       detailScores.replayability || null,
+      quality_rating:      detailScores.quality       || null,
+      convenience_rating:  detailScores.convenience   || null,
       memo: memo.trim() || null,
       played_at: playedAt || null,
       participants: participants.trim() || null,
@@ -1116,7 +1200,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                       return (
                         <>
                           <div style={{ height: 1, background: COLORS.border, marginBottom: 16 }} />
-                          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+                          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>
                               다른 사람 리뷰
                             </div>
@@ -1128,6 +1212,22 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                               </div>
                             )}
                           </div>
+                          {(() => {
+                            const detailAvgs = DETAIL_FIELDS.map(({ key, label, col }) => {
+                              const vals = allReviews.map((r) => r[col]).filter(Boolean);
+                              return vals.length > 0 ? { label, avg: vals.reduce((a, b) => a + b, 0) / vals.length } : null;
+                            }).filter(Boolean);
+                            if (detailAvgs.length === 0) return null;
+                            return (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                                {detailAvgs.map(({ label, avg: da }) => (
+                                  <span key={label} style={{ fontSize: 11, color: COLORS.sub, background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "3px 8px" }}>
+                                    {label} <span style={{ color: COLORS.accent, fontWeight: 700 }}>★ {da.toFixed(1)}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
                           {allReviewsLoading ? (
                             <div style={{ textAlign: "center", fontSize: 12, color: COLORS.subLight, padding: "12px 0" }}>불러오는 중...</div>
                           ) : othersReviews.length === 0 ? (
@@ -1156,7 +1256,16 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                                     )}
                                     {review.memo && <div style={{ fontSize: 13, color: "#404040", lineHeight: 1.6, wordBreak: "break-word" }}>{review.memo}</div>}
                                     {review.user_id !== session?.user.id && (
-                                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                                        {session && (
+                                          <button
+                                            onClick={() => setReportingReviewId(review.id)}
+                                            title="신고"
+                                            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: COLORS.subLight, padding: "2px 4px", fontFamily: "inherit", borderRadius: 4 }}
+                                          >
+                                            ⚠️ 신고
+                                          </button>
+                                        )}
                                         <button
                                           onClick={() => toggleLike(review.id)}
                                           onMouseEnter={() => setHoveredLikeId(review.id)}
@@ -1171,6 +1280,7 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                                             fontSize: 12, fontWeight: 600,
                                             height: isMobile ? 44 : 28, minWidth: isMobile ? 44 : undefined,
                                             transition: "all 0.15s",
+                                            marginLeft: "auto",
                                           }}
                                         >
                                           <span style={{ fontSize: 14, lineHeight: 1 }}>
@@ -1201,6 +1311,15 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
             </div>
           </div>
         </>
+      )}
+
+      {/* 신고 모달 */}
+      {reportingReviewId && session && (
+        <ReportModal
+          reviewId={reportingReviewId}
+          session={session}
+          onClose={() => setReportingReviewId(null)}
+        />
       )}
 
       {/* 편집 제안 모달 */}
