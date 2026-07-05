@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
@@ -304,6 +304,12 @@ export default function App() {
       .then(({ data }) => setProfile(data));
   }, [session]);
 
+  const reloadProfile = useCallback(async () => {
+    if (!session) return;
+    const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+    setProfile(data);
+  }, [session]);
+
   if (authLoading) {
     return (
       <div
@@ -344,7 +350,7 @@ export default function App() {
       <div style={{ paddingBottom: session ? TAB_H : 0 }}>
         <Routes>
           <Route path="/" element={<Home session={session} />} />
-          <Route path="/mypage" element={<MyPage session={session} profile={profile} isOwnPage={true} />} />
+          <Route path="/mypage" element={<MyPage session={session} profile={profile} isOwnPage={true} onProfileUpdate={reloadProfile} />} />
           <Route path="/user/:userId" element={<MyPage session={session} profile={profile} isOwnPage={false} />} />
           <Route path="/admin" element={<AdminPage session={session} profile={profile} />} />
           <Route path="/privacy" element={<Privacy />} />

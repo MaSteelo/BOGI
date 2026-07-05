@@ -372,6 +372,39 @@ export default function AdminPage({ session, profile }) {
     loadReports();
   };
 
+  // ── 피드백 상태 ──
+  const [feedbacks, setFeedbacks]           = useState([]);
+  const [feedbacksLoading, setFeedbacksLoading] = useState(false);
+  const [feedbackStatusTab, setFeedbackStatusTab] = useState("pending");
+
+  const loadFeedbacks = useCallback(async () => {
+    setFeedbacksLoading(true);
+    const { data: rows } = await supabase
+      .from("feedback")
+      .select("*")
+      .eq("status", feedbackStatusTab)
+      .order("created_at", { ascending: feedbackStatusTab === "pending" });
+
+    if (!rows) { setFeedbacks([]); setFeedbacksLoading(false); return; }
+    const userIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))];
+    const { data: profileRows } = userIds.length > 0
+      ? await supabase.from("profiles").select("id, nickname").in("id", userIds)
+      : { data: [] };
+    const nickMap = {};
+    profileRows?.forEach((p) => { nickMap[p.id] = p.nickname; });
+    setFeedbacks(rows.map((r) => ({ ...r, userNickname: nickMap[r.user_id] || "알 수 없음" })));
+    setFeedbacksLoading(false);
+  }, [feedbackStatusTab]);
+
+  useEffect(() => {
+    if (section === "feedback") loadFeedbacks();
+  }, [section, loadFeedbacks]);
+
+  const handleFeedbackAction = async (feedbackId, newStatus) => {
+    await supabase.from("feedback").update({ status: newStatus }).eq("id", feedbackId);
+    loadFeedbacks();
+  };
+
   return (
     <main style={{ maxWidth: 860, margin: "0 auto", padding: "32px 24px" }}>
       {/* 섹션 스위처 */}
@@ -380,6 +413,7 @@ export default function AdminPage({ session, profile }) {
           { key: "edits",       label: "🛠 편집 검토", badge: counts["pending"] },
           { key: "submissions", label: "➕ 게임 추가", badge: pendingSubCount },
           { key: "reports",     label: "🚨 신고 목록", badge: 0 },
+          { key: "feedback",    label: "💬 피드백",    badge: 0 },
         ].map(({ key, label, badge }) => {
           const active = section === key;
           return (
@@ -772,6 +806,59 @@ export default function AdminPage({ session, profile }) {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── 피드백 섹션 ── */}
+      {section === "feedback" && (
+        <>
+          <div style={{ marginBottom: 24 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: -0.3 }}>💬 피드백</h2>
+            <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>사용자가 제출한 오류신고 및 피드백입니다.</div>
+          </div>
+          <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: `1px solid ${COLORS.border}` }}>
+            {[{ key: "pending", label: "대기" }, { key: "reviewed", label: "검토됨" }, { key: "closed", label: "완료" }].map((tab) => {
+              const active = feedbackStatusTab === tab.key;
+              return (
+                <button key={tab.key} onClick={() => setFeedbackStatusTab(tab.key)} style={{ background: "none", border: "none", cursor: "pointer", padding: "10px 20px", fontFamily: "inherit", fontSize: 14, fontWeight: active ? 700 : 500, color: active ? COLORS.accent : COLORS.sub, borderBottom: active ? `2px solid ${COLORS.accent}` : "2px solid transparent", marginBottom: -1, transition: "all 0.15s" }}>
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+          {feedbacksLoading ? (
+            <div style={{ textAlign: "center", padding: 60, color: COLORS.subLight }}>불러오는 중...</div>
+          ) : feedbacks.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 60, color: COLORS.subLight }}><div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>피드백 없음</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {feedbacks.map((fb) => (
+                <div key={fb.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: "16px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, flexWrap: "wrap", gap: 4 }}>
+                    <div>
+                      <span style={{ fontWeight: 800, fontSize: 14, color: COLORS.text }}>{fb.title}</span>
+                      <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, background: COLORS.accentLight, color: COLORS.accent, padding: "1px 7px", borderRadius: 8 }}>
+                        {fb.type === "bug" ? "🐛 버그" : fb.type === "feature" ? "💡 기능제안" : "💬 기타"}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 11, color: COLORS.subLight }}>{new Date(fb.created_at).toLocaleDateString("ko-KR")} · {fb.userNickname}</span>
+                  </div>
+                  {fb.detail && <div style={{ fontSize: 12, color: COLORS.sub, background: COLORS.bg, borderRadius: 8, padding: "8px 12px", marginBottom: 10, lineHeight: 1.6 }}>{fb.detail}</div>}
+                  {fb.status === "pending" && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => handleFeedbackAction(fb.id, "closed")} style={{ flex: 1, padding: "8px 0", fontSize: 12, fontWeight: 700, border: `1px solid ${COLORS.border}`, borderRadius: 8, background: COLORS.bg, color: COLORS.sub, cursor: "pointer", fontFamily: "inherit" }}>완료</button>
+                      <button onClick={() => handleFeedbackAction(fb.id, "reviewed")} style={{ flex: 2, padding: "8px 0", fontSize: 12, fontWeight: 700, border: "none", borderRadius: 8, background: COLORS.accent, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>검토 완료</button>
+                    </div>
+                  )}
+                  {fb.status !== "pending" && (
+                    <div style={{ fontSize: 11, color: COLORS.subLight }}>
+                      {fb.status === "reviewed" ? "✅ 검토됨" : "✓ 완료"}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </>

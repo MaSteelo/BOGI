@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../supabase";
 import GameCard from "../GameCard";
 import { HalfStarDisplay } from "../components/StarDisplay";
+import FeedbackModal from "../components/FeedbackModal";
 
 const COLORS = {
   bg: "#fafafa",
@@ -50,6 +51,8 @@ const GENRE_STYLE = {
   확장: { grad: ["#f3f4f6", "#9ca3af"], emoji: "➕" },
 };
 const FALLBACK = { grad: ["#f3f4f6", "#d4d4d8"], emoji: "🎲" };
+
+const AVATAR_COLORS = ["#1e643c","#2563eb","#9333ea","#dc2626","#d97706","#0891b2","#db2777","#374151"];
 
 function getNormalizedScore(review) {
   return review.total_score || null;
@@ -234,7 +237,7 @@ function GenreChips({ genreStats }) {
 
 const REVIEWS_QUERY = "*, games(id, name_ko, name_en, genre, min_players, max_players, play_minutes, bgg_rank, publisher, description, min_age, image_url)";
 
-export default function MyPage({ session, profile, isOwnPage = true }) {
+export default function MyPage({ session, profile, isOwnPage = true, onProfileUpdate }) {
   const navigate = useNavigate();
   const { userId: paramUserId } = useParams();
   const windowWidth = useWindowWidth();
@@ -250,6 +253,18 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
 
   const [targetProfile, setTargetProfile] = useState(null);
   const [notFound, setNotFound] = useState(false);
+
+  // 설정
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsView, setSettingsView] = useState("main");
+  const [editNickname, setEditNickname] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editPasswordConfirm, setEditPasswordConfirm] = useState("");
+  const [editAvatarColor, setEditAvatarColor] = useState(COLORS.accent);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editSuccess, setEditSuccess] = useState("");
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const reloadOwnReviews = async () => {
     if (!session?.user.id) return;
@@ -383,6 +398,38 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
 
   const displayNickname = isOwnPage ? (profile?.nickname ?? "") : (targetProfile?.nickname ?? "");
   const displayJoinDate = isOwnPage ? session?.user.created_at : targetProfile?.created_at;
+  const avatarColor = isOwnPage ? (profile?.avatar_color || COLORS.accent) : (targetProfile?.avatar_color || COLORS.accent);
+
+  const openSettings = () => {
+    setSettingsView("main");
+    setEditNickname(profile?.nickname || "");
+    setEditAvatarColor(profile?.avatar_color || COLORS.accent);
+    setEditPassword("");
+    setEditPasswordConfirm("");
+    setEditError("");
+    setEditSuccess("");
+    setSettingsOpen(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editNickname.trim()) { setEditError("닉네임을 입력해주세요."); return; }
+    if (editPassword && editPassword !== editPasswordConfirm) { setEditError("비밀번호가 일치하지 않아요."); return; }
+    if (editPassword && editPassword.length < 6) { setEditError("비밀번호는 6자 이상이어야 해요."); return; }
+    setEditSaving(true);
+    setEditError("");
+    setEditSuccess("");
+    const { error: profErr } = await supabase.from("profiles")
+      .update({ nickname: editNickname.trim(), avatar_color: editAvatarColor })
+      .eq("id", session.user.id);
+    if (profErr) { setEditSaving(false); setEditError(profErr.message); return; }
+    if (editPassword) {
+      const { error: pwErr } = await supabase.auth.updateUser({ password: editPassword });
+      if (pwErr) { setEditSaving(false); setEditError(pwErr.message); return; }
+    }
+    setEditSaving(false);
+    setEditSuccess("저장됐어요!");
+    onProfileUpdate?.();
+  };
 
   if (loading) {
     return (
@@ -426,7 +473,7 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
               {/* 아바타 */}
               <div style={{
                 width: 64, height: 64, borderRadius: "50%",
-                background: COLORS.accent,
+                background: avatarColor,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 color: "#fff", fontSize: 24, fontWeight: 700,
                 flexShrink: 0,
@@ -444,6 +491,21 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
                   🗓 {formatJoinDate(displayJoinDate)}
                 </div>
               </div>
+              {isOwnPage && (
+                <button
+                  onClick={openSettings}
+                  title="설정"
+                  style={{
+                    marginLeft: "auto", background: "none",
+                    border: `1px solid ${COLORS.border}`, borderRadius: 8,
+                    width: 36, height: 36, cursor: "pointer",
+                    fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
+                    color: COLORS.sub, flexShrink: 0,
+                  }}
+                >
+                  ⚙️
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -613,6 +675,108 @@ export default function MyPage({ session, profile, isOwnPage = true }) {
           )}
         </div>
       )}
+
+      {/* ── 설정 모달 ── */}
+      {settingsOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false); }}
+        >
+          <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 400, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
+            {settingsView === "main" ? (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 20px 16px", borderBottom: `1px solid ${COLORS.border}` }}>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: COLORS.text }}>설정</div>
+                  <button onClick={() => setSettingsOpen(false)} style={sModalCloseBtn}>✕</button>
+                </div>
+
+                <div style={{ padding: "6px 20px 4px", fontSize: 11, fontWeight: 700, color: COLORS.subLight, letterSpacing: 0.5, marginTop: 8 }}>계정</div>
+                <button onClick={() => setSettingsView("edit")} style={sModalRow}>
+                  <span>회원정보 수정</span><span style={{ color: COLORS.subLight }}>›</span>
+                </button>
+
+                <div style={{ height: 1, background: COLORS.border, margin: "4px 0" }} />
+
+                <div style={{ padding: "6px 20px 4px", fontSize: 11, fontWeight: 700, color: COLORS.subLight, letterSpacing: 0.5 }}>서비스</div>
+                <button onClick={() => window.open("/privacy", "_blank")} style={sModalRow}>
+                  <span>개인정보처리방침</span><span style={{ color: COLORS.subLight }}>›</span>
+                </button>
+                <div style={{ height: 1, background: COLORS.border, marginLeft: 20 }} />
+                <button onClick={() => { setSettingsOpen(false); setFeedbackOpen(true); }} style={sModalRow}>
+                  <span>오류신고 / 피드백</span><span style={{ color: COLORS.subLight }}>›</span>
+                </button>
+
+                <div style={{ height: 8, background: COLORS.bg }} />
+
+                <button onClick={() => { supabase.auth.signOut(); setSettingsOpen(false); }} style={{ ...sModalRow, color: "#ef4444" }}>
+                  로그아웃
+                </button>
+                <div style={{ height: 1, background: COLORS.border, marginLeft: 20 }} />
+                <button onClick={() => { setSettingsOpen(false); navigate("/delete-account"); }} style={{ ...sModalRow, color: COLORS.subLight, paddingBottom: 4 }}>
+                  회원탈퇴
+                </button>
+
+                <div style={{ borderTop: `1px solid ${COLORS.border}`, padding: "12px 20px", textAlign: "center" }}>
+                  <a href="https://boardgamegeek.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: COLORS.subLight, textDecoration: "none" }}>
+                    Powered by BoardGameGeek
+                  </a>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${COLORS.border}`, gap: 12 }}>
+                  <button onClick={() => setSettingsView("main")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: 0, color: COLORS.sub, lineHeight: 1 }}>←</button>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: COLORS.text, flex: 1 }}>회원정보 수정</div>
+                  <button onClick={() => setSettingsOpen(false)} style={sModalCloseBtn}>✕</button>
+                </div>
+
+                <div style={{ padding: "20px 20px 24px" }}>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={sModalLabel}>아바타 색상</label>
+                    <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                      {AVATAR_COLORS.map((c) => (
+                        <button
+                          key={c} type="button" onClick={() => setEditAvatarColor(c)}
+                          style={{ width: 34, height: 34, borderRadius: "50%", background: c, cursor: "pointer", border: editAvatarColor === c ? "3px solid #1a1a1a" : "3px solid transparent", boxSizing: "border-box", flexShrink: 0 }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={sModalLabel}>닉네임</label>
+                    <input type="text" value={editNickname} onChange={(e) => setEditNickname(e.target.value)} style={sModalInput} />
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={sModalLabel}>새 비밀번호 <span style={{ fontSize: 11, color: COLORS.subLight, fontWeight: 400, marginLeft: 4 }}>선택</span></label>
+                    <input type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="변경하지 않으면 비워두세요" style={sModalInput} />
+                  </div>
+
+                  {editPassword && (
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={sModalLabel}>비밀번호 확인</label>
+                      <input type="password" value={editPasswordConfirm} onChange={(e) => setEditPasswordConfirm(e.target.value)} style={sModalInput} />
+                    </div>
+                  )}
+
+                  {editError && <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 12, padding: "8px 12px", background: "#fee2e2", borderRadius: 8 }}>{editError}</div>}
+                  {editSuccess && <div style={{ fontSize: 12, color: COLORS.accent, marginBottom: 12, padding: "8px 12px", background: COLORS.accentLight, borderRadius: 8 }}>{editSuccess}</div>}
+
+                  <button
+                    onClick={handleSaveProfile} disabled={editSaving}
+                    style={{ width: "100%", padding: "12px 0", fontSize: 14, fontWeight: 700, border: "none", borderRadius: 12, background: editSaving ? "#e5e7eb" : COLORS.accent, color: editSaving ? COLORS.sub : "#fff", cursor: editSaving ? "not-allowed" : "pointer", fontFamily: "inherit", transition: "background 0.15s" }}
+                  >
+                    {editSaving ? "저장 중..." : "저장하기"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {feedbackOpen && <FeedbackModal session={session} onClose={() => setFeedbackOpen(false)} />}
     </main>
   );
 }
@@ -659,4 +823,27 @@ const selectStyle = {
   outline: "none",
   cursor: "pointer",
   fontFamily: "inherit",
+};
+
+const sModalCloseBtn = {
+  background: COLORS.bg, border: `1px solid ${COLORS.border}`,
+  borderRadius: 8, width: 32, height: 32, cursor: "pointer",
+  fontSize: 14, color: COLORS.sub, fontFamily: "inherit",
+  display: "flex", alignItems: "center", justifyContent: "center",
+};
+const sModalRow = {
+  display: "flex", justifyContent: "space-between", alignItems: "center",
+  background: "none", border: "none", cursor: "pointer",
+  width: "100%", padding: "15px 20px", fontFamily: "inherit",
+  fontSize: 15, color: COLORS.text, fontWeight: 500, textAlign: "left",
+};
+const sModalLabel = {
+  display: "block", fontSize: 12, fontWeight: 700, color: COLORS.sub, marginBottom: 6,
+};
+const sModalInput = {
+  width: "100%", boxSizing: "border-box",
+  background: COLORS.bg, border: `1px solid ${COLORS.border}`,
+  borderRadius: 8, padding: "9px 12px",
+  color: COLORS.text, fontSize: 13,
+  outline: "none", fontFamily: "inherit",
 };
