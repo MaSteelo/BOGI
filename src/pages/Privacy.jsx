@@ -173,9 +173,6 @@ export default function Privacy() {
               <strong>서비스명:</strong> BOGI
             </div>
             <div>
-              <strong>담당자:</strong> 전준기
-            </div>
-            <div>
               <strong>이메일:</strong>{" "}
               <a
                 href="mailto:talljoongi@gmail.com"

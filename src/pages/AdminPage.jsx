@@ -368,7 +368,16 @@ export default function AdminPage({ session, profile }) {
   }, [section, loadReports]);
 
   const handleReportAction = async (reportId, newStatus) => {
-    await supabase.from("reports").update({ status: newStatus }).eq("id", reportId);
+    const { error } = await supabase.from("reports").update({ status: newStatus }).eq("id", reportId);
+    if (error) { alert("처리 실패: " + error.message); return; }
+    loadReports();
+  };
+
+  const handleDeleteReview = async (reviewId, reportId) => {
+    if (!window.confirm("해당 리뷰를 삭제하시겠습니까? 되돌릴 수 없습니다.")) return;
+    const { error } = await supabase.from("reviews").delete().eq("id", reviewId);
+    if (error) { alert("리뷰 삭제 실패: " + error.message); return; }
+    await supabase.from("reports").update({ status: "resolved" }).eq("id", reportId);
     loadReports();
   };
 
@@ -902,9 +911,12 @@ export default function AdminPage({ session, profile }) {
                     </div>
                   )}
                   {r.status === "pending" && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => handleReportAction(r.id, "dismissed")} style={{ flex: 1, padding: "8px 0", fontSize: 12, fontWeight: 700, border: `1px solid ${COLORS.border}`, borderRadius: 8, background: COLORS.bg, color: COLORS.sub, cursor: "pointer", fontFamily: "inherit" }}>기각</button>
-                      <button onClick={() => handleReportAction(r.id, "resolved")} style={{ flex: 2, padding: "8px 0", fontSize: 12, fontWeight: 700, border: "none", borderRadius: 8, background: COLORS.error, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>처리 완료</button>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button onClick={() => handleReportAction(r.id, "dismissed")} style={{ flex: 1, minWidth: 60, padding: "8px 0", fontSize: 12, fontWeight: 700, border: `1px solid ${COLORS.border}`, borderRadius: 8, background: COLORS.bg, color: COLORS.sub, cursor: "pointer", fontFamily: "inherit" }}>무시</button>
+                      <button onClick={() => handleReportAction(r.id, "resolved")} style={{ flex: 1, minWidth: 60, padding: "8px 0", fontSize: 12, fontWeight: 700, border: "none", borderRadius: 8, background: COLORS.accent, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>해결</button>
+                      {r.reviews?.user_id && (
+                        <button onClick={() => handleDeleteReview(r.review_id, r.id)} style={{ flex: 1, minWidth: 80, padding: "8px 0", fontSize: 12, fontWeight: 700, border: "none", borderRadius: 8, background: COLORS.error, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>리뷰 삭제</button>
+                      )}
                     </div>
                   )}
                 </div>

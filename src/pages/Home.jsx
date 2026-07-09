@@ -528,6 +528,17 @@ export default function Home({ session }) {
         />,
         document.body
       )}
+
+      <div style={{ textAlign: "center", paddingTop: 40, paddingBottom: 20 }}>
+        <a
+          href="https://boardgamegeek.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ fontSize: 11, color: "#a3a3a3", textDecoration: "none" }}
+        >
+          Powered by BoardGameGeek
+        </a>
+      </div>
     </main>
   );
 }

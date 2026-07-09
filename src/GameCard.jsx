@@ -1217,14 +1217,29 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                               const vals = allReviews.map((r) => r[col]).filter(Boolean);
                               return vals.length > 0 ? { label, avg: vals.reduce((a, b) => a + b, 0) / vals.length } : null;
                             }).filter(Boolean);
-                            if (detailAvgs.length === 0) return null;
                             return (
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-                                {detailAvgs.map(({ label, avg: da }) => (
-                                  <span key={label} style={{ fontSize: 11, color: COLORS.sub, background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "3px 8px" }}>
-                                    {label} <span style={{ color: COLORS.accent, fontWeight: 700 }}>★ {da.toFixed(1)}</span>
-                                  </span>
-                                ))}
+                              <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.sub, marginBottom: 10 }}>세부 별점 평균</div>
+                                {detailAvgs.length === 0 ? (
+                                  <div style={{ fontSize: 12, color: COLORS.subLight, textAlign: "center" }}>세부 별점 데이터가 없습니다</div>
+                                ) : (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    {DETAIL_FIELDS.map(({ key, label, col }) => {
+                                      const vals = allReviews.map((r) => r[col]).filter(Boolean);
+                                      if (vals.length === 0) return null;
+                                      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+                                      return (
+                                        <div key={key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                          <span style={{ fontSize: 11, color: COLORS.sub, width: 44, flexShrink: 0 }}>{label}</span>
+                                          <div style={{ flex: 1, height: 5, background: COLORS.border, borderRadius: 3, overflow: "hidden" }}>
+                                            <div style={{ width: `${(avg / 5) * 100}%`, height: "100%", background: COLORS.accent, borderRadius: 3 }} />
+                                          </div>
+                                          <span style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700, width: 26, flexShrink: 0, textAlign: "right" }}>★{avg.toFixed(1)}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             );
                           })()}
@@ -1249,23 +1264,25 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                                           </>
                                         )}
                                       </div>
-                                      <span style={{ fontSize: 11, color: COLORS.subLight }}>{review.played_at || review.created_at?.slice(0, 10)}</span>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                        <span style={{ fontSize: 11, color: COLORS.subLight }}>{review.played_at || review.created_at?.slice(0, 10)}</span>
+                                        {session && review.user_id !== session?.user.id && (
+                                          <button
+                                            onClick={() => setReportingReviewId(review.id)}
+                                            title="신고하기"
+                                            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: COLORS.subLight, padding: "1px 2px", fontFamily: "inherit", lineHeight: 1, opacity: 0.6 }}
+                                          >
+                                            ⚑
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                     {!review.participants_private && review.participants && (
                                       <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: review.memo ? 3 : 0 }}>👥 {review.participants}</div>
                                     )}
                                     {review.memo && <div style={{ fontSize: 13, color: "#404040", lineHeight: 1.6, wordBreak: "break-word" }}>{review.memo}</div>}
                                     {review.user_id !== session?.user.id && (
-                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
-                                        {session && (
-                                          <button
-                                            onClick={() => setReportingReviewId(review.id)}
-                                            title="신고"
-                                            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: COLORS.subLight, padding: "2px 4px", fontFamily: "inherit", borderRadius: 4 }}
-                                          >
-                                            ⚠️ 신고
-                                          </button>
-                                        )}
+                                      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginTop: 6 }}>
                                         <button
                                           onClick={() => toggleLike(review.id)}
                                           onMouseEnter={() => setHoveredLikeId(review.id)}
@@ -1280,7 +1297,6 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                                             fontSize: 12, fontWeight: 600,
                                             height: isMobile ? 44 : 28, minWidth: isMobile ? 44 : undefined,
                                             transition: "all 0.15s",
-                                            marginLeft: "auto",
                                           }}
                                         >
                                           <span style={{ fontSize: 14, lineHeight: 1 }}>
