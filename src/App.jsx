@@ -8,6 +8,7 @@ import AdminPage from "./pages/AdminPage";
 import Privacy from "./pages/Privacy";
 import DeleteAccount from "./pages/DeleteAccount";
 import NotificationBell from "./components/NotificationBell";
+import bggLogo from "./assets/bgg-logo.svg";
 
 const COLORS = {
   bg: "#fafafa",
@@ -135,6 +136,30 @@ function Header({ profile, session }) {
         </div>
       </div>
     </header>
+  );
+}
+
+function Footer() {
+  return (
+    <footer style={{ textAlign: "center", padding: "28px 20px 40px" }}>
+      <a
+        href="https://boardgamegeek.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "4px 12px",
+          borderRadius: 999,
+          background: "#e8f5ee",
+          textDecoration: "none",
+        }}
+      >
+        <img src={bggLogo} alt="BoardGameGeek" style={{ height: 13, display: "block" }} />
+        <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.accent }}>Powered by BGG</span>
+      </a>
+    </footer>
   );
 }
 
@@ -356,6 +381,7 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/delete-account" element={<DeleteAccount />} />
         </Routes>
+        <Footer />
       </div>
       {session && <BottomTabBar isAdmin={profile?.is_admin ?? false} />}
     </div>

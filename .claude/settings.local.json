@@ -13,7 +13,13 @@
       "Bash(node *)",
       "Bash(curl *)",
       "Bash(grep -E \"\\(package\\\\.json|\\\\.jsx|\\\\.js$\\)\")",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(npx create-expo-app@latest boardgame-app-mobile --template blank)",
+      "Bash(npx expo *)",
+      "Bash(pkill -f \"expo start\")",
+      "Bash(pkill -f \"react-native\")",
+      "Bash(pkill -f \"metro\")",
+      "Bash(./node_modules/.bin/expo install *)"
     ]
   }
 }

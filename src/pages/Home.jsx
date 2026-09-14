@@ -302,6 +302,25 @@ export default function Home({ session }) {
               <RankCard key={r.rank} ranking={r} isMobile={isMobile} reviewSummary={reviewSummary[bggRankToGameId[r.rank]] || null} />
             ))}
           </div>
+          <a
+            href="https://boardgamegeek.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              marginTop: 10,
+              padding: "3px 10px",
+              borderRadius: 999,
+              background: COLORS.accentLight,
+              color: COLORS.accent,
+              fontSize: 11,
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            Powered by BGG
+          </a>
         </section>
       )}
 
