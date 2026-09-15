@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import Auth from "./Auth";
 import Home from "./pages/Home";
 import MyPage from "./pages/MyPage";
+import CollectionDetail from "./pages/CollectionDetail";
 import AdminPage from "./pages/AdminPage";
 import Privacy from "./pages/Privacy";
 import DeleteAccount from "./pages/DeleteAccount";
@@ -377,6 +378,7 @@ export default function App() {
           <Route path="/" element={<Home session={session} />} />
           <Route path="/mypage" element={<MyPage session={session} profile={profile} isOwnPage={true} onProfileUpdate={reloadProfile} />} />
           <Route path="/user/:userId" element={<MyPage session={session} profile={profile} isOwnPage={false} />} />
+          <Route path="/collection/:slug" element={<CollectionDetail session={session} />} />
           <Route path="/admin" element={<AdminPage session={session} profile={profile} />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/delete-account" element={<DeleteAccount />} />

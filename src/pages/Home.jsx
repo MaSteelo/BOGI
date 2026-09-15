@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "../supabase";
 import GameCard from "../GameCard";
 import GameFilter from "../components/GameFilter";
@@ -103,6 +104,7 @@ export default function Home({ session }) {
   const [games, setGames] = useState([]);
   const [rankings, setRankings] = useState([]);
   const [bogiTop, setBogiTop] = useState([]);   // BOGI 유저 평점 TOP
+  const [collections, setCollections] = useState([]); // 발행된 컬렉션 (게임 있는 것만)
   const [loading, setLoading] = useState(true);
   const [reviewSummary, setReviewSummary] = useState({});
 
@@ -208,6 +210,42 @@ export default function Home({ session }) {
     else setReviewSummary({});
   }, [session, refreshReviewSummary]);
 
+  // 컬렉션은 실패해도 나머지 홈 섹션에 영향 없도록 별도 effect로 분리
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: cols, error: colErr } = await supabase
+          .from("collections")
+          .select("*")
+          .eq("is_published", true)
+          .order("sort_order");
+        if (colErr || !cols?.length) { setCollections([]); return; }
+
+        const { data: cgRows, error: cgErr } = await supabase
+          .from("collection_games")
+          .select("collection_id, sort_order, note, games(*)")
+          .order("sort_order");
+        if (cgErr) { setCollections([]); return; }
+
+        const byCollection = {};
+        (cgRows || []).forEach((row) => {
+          if (!row.games) return;
+          if (!byCollection[row.collection_id]) byCollection[row.collection_id] = [];
+          byCollection[row.collection_id].push({ game: row.games, note: row.note });
+        });
+
+        const withGames = cols
+          .map((c) => ({ ...c, items: byCollection[c.id] || [] }))
+          .filter((c) => c.items.length > 0);
+
+        setCollections(withGames);
+      } catch (err) {
+        console.warn("[컬렉션 로딩 실패]", err);
+        setCollections([]);
+      }
+    })();
+  }, []);
+
   const rankingsMap = useMemo(() => {
     const map = {};
     rankings.forEach((r) => { map[r.rank] = r; });
@@ -283,47 +321,6 @@ export default function Home({ session }) {
   return (
     <main style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "16px 12px" : "32px 24px" }}>
 
-      {/* ── BGG 글로벌 TOP ── */}
-      {rankings.length > 0 && (
-        <section style={{ marginBottom: isMobile ? 32 : 48 }}>
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
-              <div style={{ width: 3, height: 20, borderRadius: 2, background: COLORS.accent, marginRight: 10, flexShrink: 0 }} />
-              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
-                🌍 BGG 글로벌 TOP
-              </h2>
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
-              BoardGameGeek 기준 TOP {rankings.length}
-            </div>
-          </div>
-          <div style={scrollContainerStyle}>
-            {rankings.map((r) => (
-              <RankCard key={r.rank} ranking={r} isMobile={isMobile} reviewSummary={reviewSummary[bggRankToGameId[r.rank]] || null} />
-            ))}
-          </div>
-          <a
-            href="https://boardgamegeek.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              marginTop: 10,
-              padding: "3px 10px",
-              borderRadius: 999,
-              background: COLORS.accentLight,
-              color: COLORS.accent,
-              fontSize: 11,
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
-          >
-            Powered by BGG
-          </a>
-        </section>
-      )}
-
       {/* ── BOGI 유저 평점 TOP ── */}
       {!loading && (
         <section style={{ marginBottom: isMobile ? 32 : 48 }}>
@@ -373,6 +370,86 @@ export default function Home({ session }) {
               아직 평가가 충분하지 않아요. 첫 평가를 남겨보세요!
             </div>
           )}
+        </section>
+      )}
+
+      {/* ── 컬렉션 ── */}
+      {collections.map((c) => (
+        <section key={c.id} style={{ marginBottom: isMobile ? 32 : 48 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+                <div style={{ width: 3, height: 20, borderRadius: 2, background: COLORS.accent, marginRight: 10, flexShrink: 0 }} />
+                <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
+                  {c.title}
+                </h2>
+              </div>
+              {c.subtitle && (
+                <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
+                  {c.subtitle}
+                </div>
+              )}
+            </div>
+            <Link
+              to={`/collection/${c.slug}`}
+              style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: COLORS.accent, textDecoration: "none", whiteSpace: "nowrap", padding: "4px 0" }}
+            >
+              전체보기 →
+            </Link>
+          </div>
+          <div style={scrollContainerStyle}>
+            {c.items.map(({ game }) => (
+              <CollectionGameCard
+                key={game.id}
+                game={game}
+                isMobile={isMobile}
+                session={session}
+                reviewSummary={reviewSummary[game.id] || null}
+                onReviewSaved={refreshReviewSummary}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+
+      {/* ── BGG 글로벌 TOP ── */}
+      {rankings.length > 0 && (
+        <section style={{ marginBottom: isMobile ? 32 : 48 }}>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ width: 3, height: 20, borderRadius: 2, background: COLORS.accent, marginRight: 10, flexShrink: 0 }} />
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
+                🌍 BGG 글로벌 TOP
+              </h2>
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
+              BoardGameGeek 기준 TOP {rankings.length}
+            </div>
+          </div>
+          <div style={scrollContainerStyle}>
+            {rankings.map((r) => (
+              <RankCard key={r.rank} ranking={r} isMobile={isMobile} reviewSummary={reviewSummary[bggRankToGameId[r.rank]] || null} />
+            ))}
+          </div>
+          <a
+            href="https://boardgamegeek.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              marginTop: 10,
+              padding: "3px 10px",
+              borderRadius: 999,
+              background: COLORS.accentLight,
+              color: COLORS.accent,
+              fontSize: 11,
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            Powered by BGG
+          </a>
         </section>
       )}
 
@@ -761,6 +838,101 @@ function RankCard({ ranking, isMobile, reviewSummary }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── 컬렉션 카드 ──────────────────────────────────────────────
+function CollectionGameCard({ game, isMobile, session, reviewSummary, onReviewSaved }) {
+  const [showModal, setShowModal] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  const genreStyle = getGenreStyle(game.genre);
+  const imageUrl = safeImageUrl(game.image_url);
+  const cardW = isMobile ? 120 : 152;
+  const imgH = isMobile ? 76 : 90;
+  const hasMyScore = reviewSummary?.latestScore != null;
+
+  return (
+    <>
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={() => setShowModal(true)}
+        style={{
+          flex: `0 0 ${cardW}px`,
+          background: COLORS.surface,
+          border: `1px solid ${hovered ? COLORS.borderHover : COLORS.border}`,
+          borderRadius: 12,
+          overflow: "hidden",
+          cursor: "pointer",
+          transition: "all 0.2s",
+          transform: hovered ? "translateY(-2px)" : "none",
+          boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.08)" : "0 1px 2px rgba(0,0,0,0.03)",
+        }}
+      >
+        <div
+          style={{
+            height: imgH,
+            background: `linear-gradient(135deg, ${genreStyle.grad[0]}, ${genreStyle.grad[1]})`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            position: "relative", fontSize: 32,
+            overflow: "hidden",
+          }}
+        >
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={game.name_ko}
+              loading="lazy"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            genreStyle.emoji
+          )}
+          {hasMyScore && (
+            <div
+              style={{
+                position: "absolute", top: 6, right: 6,
+                background: "rgba(30,100,60,0.88)", backdropFilter: "blur(4px)", color: "#fff",
+                fontSize: 10, fontWeight: 700,
+                padding: "3px 8px", borderRadius: 10,
+              }}
+            >
+              ⭐ {reviewSummary.latestScore.toFixed(1)}
+            </div>
+          )}
+        </div>
+        <div style={{ padding: isMobile ? "8px 9px" : "10px 12px" }}>
+          <div
+            title={game.name_ko}
+            style={{
+              fontSize: isMobile ? 11 : 13, fontWeight: 700, color: COLORS.text,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              marginBottom: 4,
+            }}
+          >
+            {game.name_ko}
+          </div>
+          <div style={{ display: "flex", gap: 6, fontSize: isMobile ? 10 : 11, color: COLORS.sub }}>
+            {game.min_players && <span>👥{game.min_players}~{game.max_players}</span>}
+            {game.play_minutes && <span>⏱{game.play_minutes}분</span>}
+          </div>
+        </div>
+      </div>
+
+      {showModal && createPortal(
+        <GameCard
+          game={game}
+          session={session}
+          reviewSummary={reviewSummary}
+          onReviewSaved={onReviewSaved}
+          autoOpen
+          onClose={() => setShowModal(false)}
+        />,
+        document.body
+      )}
+    </>
   );
 }
 
