@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../supabase";
 import { EDITABLE_FIELDS } from "../components/EditProposalModal";
+import AdminCollections from "../components/AdminCollections";
 
 const COLORS = {
   bg: "#fafafa",
@@ -423,6 +424,7 @@ export default function AdminPage({ session, profile }) {
           { key: "submissions", label: "➕ 게임 추가", badge: pendingSubCount },
           { key: "reports",     label: "🚨 신고 목록", badge: 0 },
           { key: "feedback",    label: "💬 피드백",    badge: 0 },
+          { key: "collections", label: "🗂 컬렉션",    badge: 0 },
         ].map(({ key, label, badge }) => {
           const active = section === key;
           return (
@@ -925,6 +927,9 @@ export default function AdminPage({ session, profile }) {
           )}
         </>
       )}
+
+      {/* ── 컬렉션 섹션 ── */}
+      {section === "collections" && <AdminCollections />}
     </main>
   );
 }
