@@ -354,13 +354,29 @@ export default function AdminPage({ session, profile }) {
 
     if (!rows) { setReports([]); setReportsLoading(false); return; }
 
-    const reporterIds = [...new Set(rows.map((r) => r.reporter_id))];
-    const { data: profileRows } = await supabase
-      .from("profiles").select("id, nickname").in("id", reporterIds);
+    const userIds = [...new Set([
+      ...rows.map((r) => r.reporter_id),
+      ...rows.map((r) => r.reviews?.user_id).filter(Boolean),
+    ])];
+    const gameIds = [...new Set(rows.map((r) => r.reviews?.game_id).filter(Boolean))];
+
+    const [{ data: profileRows }, { data: gameRows }] = await Promise.all([
+      supabase.from("profiles").select("id, nickname").in("id", userIds),
+      gameIds.length > 0
+        ? supabase.from("games").select("id, name_ko").in("id", gameIds)
+        : Promise.resolve({ data: [] }),
+    ]);
     const nickMap = {};
     profileRows?.forEach((p) => { nickMap[p.id] = p.nickname; });
+    const gameNameMap = {};
+    gameRows?.forEach((g) => { gameNameMap[g.id] = g.name_ko; });
 
-    setReports(rows.map((r) => ({ ...r, reporterNickname: nickMap[r.reporter_id] || "알 수 없음" })));
+    setReports(rows.map((r) => ({
+      ...r,
+      reporterNickname: nickMap[r.reporter_id] || "알 수 없음",
+      reviewAuthorNickname: r.reviews?.user_id ? (nickMap[r.reviews.user_id] || "알 수 없음") : null,
+      gameName: r.reviews?.game_id ? (gameNameMap[r.reviews.game_id] || "알 수 없는 게임") : null,
+    })));
     setReportsLoading(false);
   }, [reportStatusTab]);
 
@@ -900,18 +916,48 @@ export default function AdminPage({ session, profile }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {reports.map((r) => (
                 <div key={r.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: "16px 20px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, flexWrap: "wrap", gap: 4 }}>
-                    <div>
-                      <span style={{ fontWeight: 800, fontSize: 14, color: COLORS.text }}>{r.reason}</span>
-                      {r.detail && <span style={{ fontSize: 12, color: COLORS.sub, marginLeft: 8 }}>— {r.detail}</span>}
-                    </div>
-                    <span style={{ fontSize: 11, color: COLORS.subLight }}>{new Date(r.created_at).toLocaleDateString("ko-KR")} · {r.reporterNickname}</span>
+                  {/* 상단: 게임명 + 신고 일시 */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, flexWrap: "wrap", gap: 4 }}>
+                    <span style={{ fontWeight: 800, fontSize: 15, color: COLORS.text }}>
+                      {r.gameName ?? "게임 정보 없음"}
+                    </span>
+                    <span style={{ fontSize: 11, color: COLORS.subLight }}>
+                      {new Date(r.created_at).toLocaleString("ko-KR")}
+                    </span>
                   </div>
-                  {r.reviews?.memo && (
-                    <div style={{ fontSize: 12, color: COLORS.sub, background: COLORS.bg, borderRadius: 8, padding: "8px 12px", marginBottom: 10 }}>
-                      신고된 리뷰: {r.reviews.memo.slice(0, 100)}{r.reviews.memo.length > 100 ? "..." : ""}
+
+                  {/* 신고 사유 */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                    <span style={{
+                      fontSize: 12, fontWeight: 700, color: COLORS.accent,
+                      background: COLORS.accentLight, padding: "2px 9px", borderRadius: 8,
+                    }}>
+                      🚩 {r.reason}
+                    </span>
+                    {r.detail && <span style={{ fontSize: 12, color: COLORS.sub }}>{r.detail}</span>}
+                  </div>
+
+                  {/* 신고된 리뷰 전문 */}
+                  {r.reviews?.memo ? (
+                    <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.subLight, marginBottom: 6 }}>
+                        신고된 리뷰 · 작성자 {r.reviewAuthorNickname ?? "알 수 없음"}
+                      </div>
+                      <div style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                        {r.reviews.memo}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: COLORS.subLight, marginBottom: 10 }}>
+                      리뷰 내용이 없습니다. (삭제되었을 수 있어요)
                     </div>
                   )}
+
+                  {/* 신고자 */}
+                  <div style={{ fontSize: 11, color: COLORS.subLight, marginBottom: r.status === "pending" ? 10 : 0 }}>
+                    신고자: {r.reporterNickname}
+                  </div>
+
                   {r.status === "pending" && (
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <button onClick={() => handleReportAction(r.id, "dismissed")} style={{ flex: 1, minWidth: 60, padding: "8px 0", fontSize: 12, fontWeight: 700, border: `1px solid ${COLORS.border}`, borderRadius: 8, background: COLORS.bg, color: COLORS.sub, cursor: "pointer", fontFamily: "inherit" }}>무시</button>

@@ -1229,12 +1229,12 @@ export default function GameCard({ game, session, reviewSummary, onReviewSaved, 
                                       if (vals.length === 0) return null;
                                       const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
                                       return (
-                                        <div key={key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                          <span style={{ fontSize: 11, color: COLORS.sub, width: 44, flexShrink: 0 }}>{label}</span>
+                                        <div key={key} style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", alignItems: "center", gap: 8 }}>
+                                          <span style={{ fontSize: 11, color: COLORS.sub, width: 44, flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
                                           <div style={{ flex: 1, height: 5, background: COLORS.border, borderRadius: 3, overflow: "hidden" }}>
                                             <div style={{ width: `${(avg / 5) * 100}%`, height: "100%", background: COLORS.accent, borderRadius: 3 }} />
                                           </div>
-                                          <span style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700, width: 26, flexShrink: 0, textAlign: "right" }}>★{avg.toFixed(1)}</span>
+                                          <span style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700, minWidth: 28, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>★{avg.toFixed(1)}</span>
                                         </div>
                                       );
                                     })}

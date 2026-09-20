@@ -22,8 +22,6 @@ export default function Auth() {
   const [message, setMessage] = useState("");
   const [focusedField, setFocusedField] = useState(null);
   const [submitHovered, setSubmitHovered] = useState(false);
-  const [googleHovered, setGoogleHovered] = useState(false);
-  const [kakaoHovered, setKakaoHovered] = useState(false);
   const [forgotHovered, setForgotHovered] = useState(false);
   const [backHovered, setBackHovered] = useState(false);
 
@@ -331,71 +329,6 @@ export default function Auth() {
               {loading ? "처리 중..." : mode === "signin" ? "로그인" : "가입하기"}
             </button>
           </form>
-        )}
-
-        {/* ── 또는 구분선 + 소셜 (signin/signup 전용) ── */}
-        {mode !== "reset" && (
-          <>
-            <div style={{ margin: "20px 0", display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ flex: 1, height: 1, background: COLORS.border }} />
-              <span style={{ fontSize: 12, color: COLORS.subLight, flexShrink: 0 }}>또는</span>
-              <div style={{ flex: 1, height: 1, background: COLORS.border }} />
-            </div>
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => alert("준비 중입니다")}
-                onMouseEnter={() => setGoogleHovered(true)}
-                onMouseLeave={() => setGoogleHovered(false)}
-                style={{
-                  flex: 1,
-                  background: googleHovered ? "#f5f5f5" : "#fff",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 10,
-                  padding: "11px 0",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: COLORS.text,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 7,
-                  transition: "background 0.15s",
-                }}
-              >
-                <span style={{ fontSize: 15, fontWeight: 900, color: "#4285F4" }}>G</span>
-                Google
-              </button>
-
-              <button
-                onClick={() => alert("준비 중입니다")}
-                onMouseEnter={() => setKakaoHovered(true)}
-                onMouseLeave={() => setKakaoHovered(false)}
-                style={{
-                  flex: 1,
-                  background: kakaoHovered ? "#f0d900" : "#FEE500",
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "11px 0",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: COLORS.text,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 7,
-                  transition: "background 0.15s",
-                }}
-              >
-                <span style={{ fontSize: 15, fontWeight: 900 }}>K</span>
-                Kakao
-              </button>
-            </div>
-          </>
         )}
 
         {/* ── 모드 전환 ── */}
