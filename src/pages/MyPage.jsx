@@ -4,6 +4,7 @@ import { supabase } from "../supabase";
 import GameCard from "../GameCard";
 import { HalfStarDisplay } from "../components/StarDisplay";
 import FeedbackModal from "../components/FeedbackModal";
+import { buildTasteProfile, buildTasteSummary } from "../lib/recommend";
 
 const COLORS = {
   bg: "#fafafa",
@@ -400,6 +401,12 @@ export default function MyPage({ session, profile, isOwnPage = true, onProfileUp
   const displayJoinDate = isOwnPage ? session?.user.created_at : targetProfile?.created_at;
   const avatarColor = isOwnPage ? (profile?.avatar_color || COLORS.accent) : (targetProfile?.avatar_color || COLORS.accent);
 
+  const tasteProfile = useMemo(() => buildTasteProfile(reviews), [reviews]);
+  const tasteSummary = useMemo(
+    () => buildTasteSummary(tasteProfile, displayNickname || "회원"),
+    [tasteProfile, displayNickname]
+  );
+
   const openSettings = () => {
     setSettingsView("main");
     setEditNickname(profile?.nickname || "");
@@ -673,6 +680,10 @@ export default function MyPage({ session, profile, isOwnPage = true, onProfileUp
               기록이 쌓이면 취향 분석이 나타나요!
             </div>
           )}
+
+          <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: "16px 20px", marginTop: 16, fontSize: 13, color: COLORS.text, lineHeight: 1.6 }}>
+            {tasteSummary}
+          </div>
         </div>
       )}
 

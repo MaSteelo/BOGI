@@ -375,7 +375,7 @@ export default function App() {
       <Header profile={profile} session={session} />
       <div style={{ paddingBottom: session ? TAB_H : 0 }}>
         <Routes>
-          <Route path="/" element={<Home session={session} />} />
+          <Route path="/" element={<Home session={session} profile={profile} />} />
           <Route path="/mypage" element={<MyPage session={session} profile={profile} isOwnPage={true} onProfileUpdate={reloadProfile} />} />
           <Route path="/user/:userId" element={<MyPage session={session} profile={profile} isOwnPage={false} />} />
           <Route path="/collection/:slug" element={<CollectionDetail session={session} />} />

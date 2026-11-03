@@ -6,6 +6,7 @@ import GameCard from "../GameCard";
 import GameFilter from "../components/GameFilter";
 import { HalfStarDisplay } from "../components/StarDisplay";
 import GameSubmissionModal from "../components/GameSubmissionModal";
+import { recommendGames, MIN_REVIEWS_FOR_RECOMMENDATION } from "../lib/recommend";
 
 function thumbToOriginal(url) {
   if (!url || !url.includes("__thumb")) return url;
@@ -97,7 +98,7 @@ function useWindowWidth() {
   return width;
 }
 
-export default function Home({ session }) {
+export default function Home({ session, profile }) {
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth < 640;
 
@@ -105,6 +106,7 @@ export default function Home({ session }) {
   const [rankings, setRankings] = useState([]);
   const [bogiTop, setBogiTop] = useState([]);   // BOGI 유저 평점 TOP
   const [collections, setCollections] = useState([]); // 발행된 컬렉션 (게임 있는 것만)
+  const [recommendations, setRecommendations] = useState([]); // 개인화 추천
   const [loading, setLoading] = useState(true);
   const [reviewSummary, setReviewSummary] = useState({});
 
@@ -246,6 +248,27 @@ export default function Home({ session }) {
     })();
   }, []);
 
+  // 개인화 추천도 실패해도 나머지 홈 화면에 영향 없도록 별도 effect로 분리
+  useEffect(() => {
+    if (!session || games.length === 0) { setRecommendations([]); return; }
+    (async () => {
+      try {
+        const { data: myReviewRows, error } = await supabase
+          .from("reviews")
+          .select("game_id, total_score")
+          .eq("user_id", session.user.id);
+        if (error || !myReviewRows || myReviewRows.length < MIN_REVIEWS_FOR_RECOMMENDATION) {
+          setRecommendations([]);
+          return;
+        }
+        setRecommendations(recommendGames({ games, reviews: myReviewRows, count: 10 }));
+      } catch (err) {
+        console.warn("[추천 로딩 실패]", err);
+        setRecommendations([]);
+      }
+    })();
+  }, [session, games]);
+
   const rankingsMap = useMemo(() => {
     const map = {};
     rankings.forEach((r) => { map[r.rank] = r; });
@@ -320,6 +343,35 @@ export default function Home({ session }) {
 
   return (
     <main style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "16px 12px" : "32px 24px" }}>
+
+      {/* ── 개인화 추천 ── */}
+      {!loading && recommendations.length > 0 && (
+        <section style={{ marginBottom: isMobile ? 32 : 48 }}>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ width: 3, height: 20, borderRadius: 2, background: COLORS.accent, marginRight: 10, flexShrink: 0 }} />
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
+                🎯 취향저격 추천
+              </h2>
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
+              {profile?.nickname || "회원"}님의 기록을 바탕으로 골랐어요
+            </div>
+          </div>
+          <div style={scrollContainerStyle}>
+            {recommendations.map((game) => (
+              <CollectionGameCard
+                key={game.id}
+                game={game}
+                isMobile={isMobile}
+                session={session}
+                reviewSummary={reviewSummary[game.id] || null}
+                onReviewSaved={refreshReviewSummary}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── BOGI 유저 평점 TOP ── */}
       {!loading && (
