@@ -160,7 +160,7 @@ export function buildTasteSummary(profile, nickname) {
 
   const genreText = profile.topGenres.slice(0, 2).join("·") || null;
   const playerText = profile.preferredPlayers != null ? `${profile.preferredPlayers}인` : null;
-  const minuteText = profile.preferredMinutes != null ? `${Math.round(profile.preferredMinutes)}분 내외` : null;
+  const minuteText = profile.preferredMinutes != null ? `${Math.round(profile.preferredMinutes / 10) * 10}분 내외` : null;
   const playTimeText = [playerText, minuteText].filter(Boolean).join(" ") || null;
 
   const parts = [];
