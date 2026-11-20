@@ -107,6 +107,7 @@ export default function Home({ session, profile }) {
   const [bogiTop, setBogiTop] = useState([]);   // BOGI 유저 평점 TOP
   const [collections, setCollections] = useState([]); // 발행된 컬렉션 (게임 있는 것만)
   const [recommendations, setRecommendations] = useState([]); // 개인화 추천
+  const [mostPlayed, setMostPlayed] = useState([]); // 많이 플레이한 게임
   const [loading, setLoading] = useState(true);
   const [reviewSummary, setReviewSummary] = useState({});
 
@@ -147,65 +148,62 @@ export default function Home({ session, profile }) {
     setReviewSummary(map);
   }, [session]);
 
+  // games / BOGI TOP / BGG 랭킹 / 커뮤니티 통계 — review 변경 시 다시 불러올 수 있도록 함수로 분리
+  const loadGames = useCallback(async () => {
+    const [gamesRes, rankingsRes, reviewsRes] = await Promise.all([
+      supabase.from("games").select("*").eq("status", "approved").order("name_ko"),
+      supabase.from("bgg_rankings").select("*").order("rank").limit(50),
+      supabase.from("reviews").select("game_id, total_score").not("total_score", "is", null),
+    ]);
+
+    if (gamesRes.data) {
+      setGames(gamesRes.data);
+
+      // BOGI TOP 집계 (클라이언트)
+      if (reviewsRes.data?.length > 0) {
+        const gamesById = {};
+        gamesRes.data.forEach((g) => { gamesById[g.id] = g; });
+
+        const agg = {};
+        reviewsRes.data.forEach((r) => {
+          if (!agg[r.game_id]) agg[r.game_id] = { sum: 0, count: 0 };
+          agg[r.game_id].sum += r.total_score;
+          agg[r.game_id].count += 1;
+        });
+
+        const top = Object.entries(agg)
+          .filter(([id]) => gamesById[id])
+          .map(([id, { sum, count }]) => ({
+            game: gamesById[id],
+            avg: sum / count,
+            count,
+          }))
+          .sort((a, b) => b.avg - a.avg || b.count - a.count)
+          .slice(0, 20);
+
+        setBogiTop(top);
+
+        const statMap = {};
+        Object.entries(agg).forEach(([id, { sum, count }]) => {
+          statMap[id] = { avg: sum / count, count };
+        });
+        setGameCommunityStats(statMap);
+      } else {
+        setBogiTop([]);
+        setGameCommunityStats({});
+      }
+    }
+
+    if (rankingsRes.data) setRankings(rankingsRes.data);
+  }, []);
+
   useEffect(() => {
     (async () => {
-      const [gamesRes, rankingsRes, reviewsRes] = await Promise.all([
-        supabase.from("games").select("*").eq("status", "approved").order("name_ko"),
-        supabase.from("bgg_rankings").select("*").order("rank").limit(50),
-        supabase.from("reviews").select("game_id, total_score").not("total_score", "is", null),
-      ]);
-
-      if (gamesRes.data) {
-        // ── 이미지 진단 로그 ──
-        const total = gamesRes.data.length;
-        const withImg = gamesRes.data.filter((g) => g.image_url).length;
-        console.log(`[이미지 진단] games 로드: ${total}개 중 image_url 있음 ${withImg}개`);
-        if (withImg > 0) {
-          const sample = gamesRes.data.find((g) => g.image_url);
-          console.log(`[이미지 진단] 샘플 URL: ${sample.name_ko} → ${sample.image_url}`);
-        } else {
-          console.warn("[이미지 진단] image_url이 있는 게임이 없습니다. fetch_bgg_images.js를 실행했는지 확인하세요.");
-        }
-        // ── ──
-
-        setGames(gamesRes.data);
-
-        // BOGI TOP 집계 (클라이언트)
-        if (reviewsRes.data?.length > 0) {
-          const gamesById = {};
-          gamesRes.data.forEach((g) => { gamesById[g.id] = g; });
-
-          const agg = {};
-          reviewsRes.data.forEach((r) => {
-            if (!agg[r.game_id]) agg[r.game_id] = { sum: 0, count: 0 };
-            agg[r.game_id].sum += r.total_score;
-            agg[r.game_id].count += 1;
-          });
-
-          const top = Object.entries(agg)
-            .filter(([id]) => gamesById[id])
-            .map(([id, { sum, count }]) => ({
-              game: gamesById[id],
-              avg: sum / count,
-              count,
-            }))
-            .sort((a, b) => b.avg - a.avg || b.count - a.count)
-            .slice(0, 20);
-
-          setBogiTop(top);
-
-          const statMap = {};
-          Object.entries(agg).forEach(([id, { sum, count }]) => {
-            statMap[id] = { avg: sum / count, count };
-          });
-          setGameCommunityStats(statMap);
-        }
-      }
-
-      if (rankingsRes.data) setRankings(rankingsRes.data);
+      setLoading(true);
+      await loadGames();
       setLoading(false);
     })();
-  }, []);
+  }, [loadGames]);
 
   useEffect(() => {
     if (session) refreshReviewSummary();
@@ -249,6 +247,7 @@ export default function Home({ session, profile }) {
   }, []);
 
   // 개인화 추천도 실패해도 나머지 홈 화면에 영향 없도록 별도 effect로 분리
+  // games가 바뀔 때마다(리뷰 저장 후 재조회 포함) 자동으로 다시 계산됨
   useEffect(() => {
     if (!session || games.length === 0) { setRecommendations([]); return; }
     (async () => {
@@ -268,6 +267,42 @@ export default function Home({ session, profile }) {
       }
     })();
   }, [session, games]);
+
+  // 많이 플레이한 게임 — 실패해도 나머지 홈 화면에 영향 없도록 별도 effect로 분리
+  // games가 바뀔 때마다(리뷰 저장 후 재조회 포함) 자동으로 다시 계산됨
+  useEffect(() => {
+    if (games.length === 0) { setMostPlayed([]); return; }
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("game_play_counts")
+          .select("game_id, play_count, player_count")
+          .order("play_count", { ascending: false })
+          .order("player_count", { ascending: false })
+          .limit(50);
+        if (error || !data) { setMostPlayed([]); return; }
+
+        const gamesById = {};
+        games.forEach((g) => { gamesById[g.id] = g; });
+
+        const withGames = data
+          .filter((row) => gamesById[row.game_id])
+          .map((row) => ({ game: gamesById[row.game_id], playCount: row.play_count }))
+          .slice(0, 10);
+
+        setMostPlayed(withGames.length >= 3 ? withGames : []);
+      } catch (err) {
+        console.warn("[많이 플레이한 게임 로딩 실패]", err);
+        setMostPlayed([]);
+      }
+    })();
+  }, [games]);
+
+  // 리뷰 저장/수정/삭제 후 홈 전체(통계·추천·많이 플레이한 게임 포함) 재조회
+  const refreshHomeData = useCallback(() => {
+    refreshReviewSummary();
+    loadGames();
+  }, [refreshReviewSummary, loadGames]);
 
   const rankingsMap = useMemo(() => {
     const map = {};
@@ -366,7 +401,37 @@ export default function Home({ session, profile }) {
                 isMobile={isMobile}
                 session={session}
                 reviewSummary={reviewSummary[game.id] || null}
-                onReviewSaved={refreshReviewSummary}
+                onReviewSaved={refreshHomeData}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── 많이 플레이한 게임 ── */}
+      {!loading && mostPlayed.length > 0 && (
+        <section style={{ marginBottom: isMobile ? 32 : 48 }}>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ width: 3, height: 20, borderRadius: 2, background: COLORS.accent, marginRight: 10, flexShrink: 0 }} />
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: -0.3, color: COLORS.text }}>
+                🔥 많이 플레이한 게임
+              </h2>
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 4 }}>
+              BOGI 유저들이 가장 많이 기록했어요
+            </div>
+          </div>
+          <div style={scrollContainerStyle}>
+            {mostPlayed.map(({ game, playCount }) => (
+              <CollectionGameCard
+                key={game.id}
+                game={game}
+                isMobile={isMobile}
+                session={session}
+                reviewSummary={reviewSummary[game.id] || null}
+                onReviewSaved={refreshHomeData}
+                playCount={playCount}
               />
             ))}
           </div>
@@ -400,7 +465,7 @@ export default function Home({ session, profile }) {
                   count={item.count}
                   session={session}
                   reviewSummary={reviewSummary[item.game.id] || null}
-                  onReviewSaved={refreshReviewSummary}
+                  onReviewSaved={refreshHomeData}
                   bggData={rankingsMap[item.game.bgg_rank] || null}
                   isMobile={isMobile}
                 />
@@ -457,7 +522,7 @@ export default function Home({ session, profile }) {
                 isMobile={isMobile}
                 session={session}
                 reviewSummary={reviewSummary[game.id] || null}
-                onReviewSaved={refreshReviewSummary}
+                onReviewSaved={refreshHomeData}
               />
             ))}
           </div>
@@ -661,7 +726,7 @@ export default function Home({ session, profile }) {
                 game={g}
                 session={session}
                 reviewSummary={reviewSummary[g.id] || null}
-                onReviewSaved={refreshReviewSummary}
+                onReviewSaved={refreshHomeData}
                 bggData={rankingsMap[g.bgg_rank] || null}
               />
             ))}
@@ -894,7 +959,7 @@ function RankCard({ ranking, isMobile, reviewSummary }) {
 }
 
 // ── 컬렉션 카드 ──────────────────────────────────────────────
-function CollectionGameCard({ game, isMobile, session, reviewSummary, onReviewSaved }) {
+function CollectionGameCard({ game, isMobile, session, reviewSummary, onReviewSaved, playCount }) {
   const [showModal, setShowModal] = useState(false);
   const [hovered, setHovered] = useState(false);
 
@@ -941,6 +1006,18 @@ function CollectionGameCard({ game, isMobile, session, reviewSummary, onReviewSa
             />
           ) : (
             genreStyle.emoji
+          )}
+          {playCount != null && (
+            <div
+              style={{
+                position: "absolute", top: 6, left: 6,
+                background: "rgba(30,100,60,0.88)", backdropFilter: "blur(4px)", color: "#fff",
+                fontSize: 10, fontWeight: 700,
+                padding: "3px 8px", borderRadius: 10,
+              }}
+            >
+              🔥 {playCount}회 플레이
+            </div>
           )}
           {hasMyScore && (
             <div
